@@ -1,0 +1,7 @@
+{
+  "id": "renal",
+  "name": "Renal System",
+  "organIds": ["kidney"],
+  "failureThreshold": 20,
+  "description": "Filters waste from the blood and regulates fluid-electrolyte balance and pH."
+}

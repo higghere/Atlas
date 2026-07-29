@@ -1,0 +1,93 @@
+{
+  "id": "sepsis",
+  "name": "Septic Shock",
+  "metadata": {
+    "category": "Infectious / Systemic",
+    "prevalence": "Moderate",
+    "riskFactors": ["infection", "immunocompromised", "hospitalization"]
+  },
+  "stages": [
+    {
+      "name": "Local Infection",
+      "threshold": 0.2,
+      "symptoms": ["Localized pain", "Mild localized inflammation", "Low fever"],
+      "effects": {
+        "toxinModifier": 1.0,
+        "vasodilationModifier": 1.0,
+        "organStress": {
+          "skin": { "infection": 30, "inflammation": 30 }
+        }
+      }
+    },
+    {
+      "name": "Systemic Inflammatory Response (SIRS)",
+      "threshold": 0.4,
+      "symptoms": ["Fever (>38°C)", "Tachycardia (HR > 90)", "Tachypnea (RR > 20)"],
+      "effects": {
+        "toxinModifier": 2.5,
+        "vasodilationModifier": 1.1,
+        "organStress": {
+          "heart": { "stress": 20 },
+          "lungs": { "stress": 20 }
+        }
+      }
+    },
+    {
+      "name": "Severe Sepsis",
+      "threshold": 0.6,
+      "symptoms": ["Altered mental state", "Hypotension", "Decreased urine output"],
+      "effects": {
+        "toxinModifier": 10.0,
+        "vasodilationModifier": 1.3,
+        "organStress": {
+          "heart": { "stress": 45, "perfusion": 90 },
+          "kidney": { "stress": 50, "perfusion": 80, "functionalCapacity": 60 },
+          "brain": { "stress": 30, "perfusion": 85 }
+        }
+      }
+    },
+    {
+      "name": "Septic Shock",
+      "threshold": 0.8,
+      "symptoms": ["Refractory hypotension", "Lactic acidosis", "Severe cold extremities"],
+      "effects": {
+        "toxinModifier": 25.0,
+        "vasodilationModifier": 1.6,
+        "organStress": {
+          "heart": { "stress": 75, "perfusion": 70, "functionalCapacity": 50 },
+          "kidney": { "stress": 80, "perfusion": 60, "functionalCapacity": 30 },
+          "brain": { "stress": 60, "perfusion": 70 },
+          "liver": { "stress": 50, "functionalCapacity": 60 }
+        }
+      }
+    },
+    {
+      "name": "Multiple Organ Dysfunction Syndrome (MODS)",
+      "threshold": 1.0,
+      "symptoms": ["Anuria", "Coma", "Cardiovascular collapse", "Disseminated Intravascular Coagulation (DIC)"],
+      "effects": {
+        "toxinModifier": 75.0,
+        "vasodilationModifier": 2.2,
+        "organStress": {
+          "heart": { "stress": 95, "perfusion": 45, "functionalCapacity": 15, "integrity": 60 },
+          "kidney": { "stress": 98, "perfusion": 35, "functionalCapacity": 5, "integrity": 70 },
+          "brain": { "stress": 90, "perfusion": 50, "functionalCapacity": 20 },
+          "liver": { "stress": 90, "functionalCapacity": 20, "integrity": 65 },
+          "lungs": { "stress": 90, "functionalCapacity": 30, "integrity": 70 }
+        }
+      }
+    }
+  ],
+  "rules": {
+    "lacticAcidAccumulation": 0.05,
+    "systemicVasodilation": 0.15
+  },
+  "labs": {
+    "wbc": [5000, 9000, 14000, 22000, 31000],
+    "toxins": [2, 10, 25, 60, 95]
+  },
+  "education": {
+    "pathophysiology": "Sepsis is a life-threatening organ dysfunction caused by a dysregulated host response to infection. Severe bacterial toxins trigger systemic release of inflammatory cytokines, causing endothelial injury and capillary leak. This leads to massive arterial vasodilation (low systemic vascular resistance) and blood pooling. The resulting absolute and relative volume depletion causes profound septic shock, characterized by cellular hypoperfusion, anaerobic glycolysis (lactic acidosis), and eventual multi-organ failure.",
+    "links": ["Immune System", "Heart", "Kidney", "Lungs", "Brain"]
+  }
+}

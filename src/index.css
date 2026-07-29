@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+@theme {
+  --color-medical-50: #f0f9ff;
+  --color-medical-100: #e0f2fe;
+  --color-medical-200: #bae6fd;
+  --color-medical-300: #7dd3fc;
+  --color-medical-400: #38bdf8;
+  --color-medical-500: #0ea5e9;
+  --color-medical-600: #0284c7;
+  --color-medical-700: #0369a1;
+  --color-medical-800: #075985;
+  --color-medical-900: #0c4a6e;
+  --color-medical-950: #082f49;
+}
+
+@layer base {
+  body {
+    @apply bg-slate-950 text-slate-100 font-sans antialiased overflow-x-hidden;
+    background-image: radial-gradient(circle at 50% 0%, #0f172a 0%, #020617 100%);
+  }
+}
+
+/* Glassmorphism custom styles */
+.glass-panel {
+  @apply bg-slate-900/70 border border-slate-800/60 backdrop-blur-md rounded-xl shadow-xl shadow-slate-950/30;
+}
+
+.glass-card {
+  @apply bg-slate-900/40 border border-slate-800/40 backdrop-blur-sm rounded-lg hover:border-slate-700/50 hover:bg-slate-900/60 transition-all duration-300;
+}
+
+.glass-input {
+  @apply bg-slate-950/60 border border-slate-800/80 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-medical-500 focus:ring-1 focus:ring-medical-500/30 transition-all duration-200;
+}
+
+.glass-btn {
+  @apply px-4 py-2 rounded-lg text-sm font-medium border transition-all duration-200 flex items-center justify-center gap-2;
+}
+
+.glass-btn-primary {
+  @apply px-4 py-2 rounded-lg text-sm font-medium border transition-all duration-200 flex items-center justify-center gap-2 bg-medical-600/80 border-medical-500 hover:bg-medical-500 hover:border-medical-400 text-white shadow-lg shadow-medical-500/10;
+}
+
+.glass-btn-secondary {
+  @apply px-4 py-2 rounded-lg text-sm font-medium border transition-all duration-200 flex items-center justify-center gap-2 bg-slate-800/50 border-slate-700 hover:bg-slate-700/60 hover:border-slate-600 text-slate-200;
+}
+
+.glass-btn-danger {
+  @apply px-4 py-2 rounded-lg text-sm font-medium border transition-all duration-200 flex items-center justify-center gap-2 bg-red-950/50 border-red-800 hover:bg-red-900/60 hover:border-red-700 text-red-200;
+}
+
+.glass-btn-success {
+  @apply px-4 py-2 rounded-lg text-sm font-medium border transition-all duration-200 flex items-center justify-center gap-2 bg-emerald-950/50 border-emerald-800 hover:bg-emerald-900/60 hover:border-emerald-700 text-emerald-200;
+}
+
+/* Pulse animation for active organs/systems */
+@keyframes active-pulse {
+  0%, 100% {
+    opacity: 0.2;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.05);
+  }
+}
+
+.pulse-active {
+  animation: active-pulse 2s infinite ease-in-out;
+}
+
+/* Custom premium scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}

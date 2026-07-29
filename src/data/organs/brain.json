@@ -1,0 +1,17 @@
+{
+  "id": "brain",
+  "name": "Brain",
+  "systemId": "nervous",
+  "compartmentId": "cranial",
+  "organSize": 1400,
+  "genetics": "normal",
+  "congenitalConditions": [],
+  "baselineFunction": 100,
+  "inputs": ["oxygen", "glucose"],
+  "outputs": ["carbonDioxide", "heat", "cortisol"],
+  "description": "The central organ of the human nervous system, controlling most of the activities of the body.",
+  "location": "Within the cranium (skull).",
+  "connectedOrgans": ["heart", "muscles"],
+  "bloodSupply": "Internal carotid and vertebral arteries (Circle of Willis)",
+  "nerveSupply": "Cranial nerves"
+}

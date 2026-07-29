@@ -1,0 +1,87 @@
+{
+  "id": "ckd",
+  "name": "Chronic Kidney Disease",
+  "metadata": {
+    "category": "Renal",
+    "prevalence": "Moderate",
+    "riskFactors": ["hypertension", "diabetes", "age"]
+  },
+  "stages": [
+    {
+      "name": "Stage 1 (Normal/High GFR)",
+      "threshold": 0.2,
+      "symptoms": ["Asymptomatic", "Slightly elevated creatinine in blood"],
+      "effects": {
+        "filtrationModifier": 0.9,
+        "potassiumModifier": 1.0,
+        "organStress": {
+          "kidney": { "stress": 10 }
+        }
+      }
+    },
+    {
+      "name": "Stage 2 (Mild GFR Decline)",
+      "threshold": 0.4,
+      "symptoms": ["Asymptomatic", "Microalbuminuria", "Mild high blood pressure"],
+      "effects": {
+        "filtrationModifier": 0.75,
+        "potassiumModifier": 1.05,
+        "organStress": {
+          "kidney": { "stress": 35, "inflammation": 10 }
+        }
+      }
+    },
+    {
+      "name": "Stage 3 (Moderate GFR Decline)",
+      "threshold": 0.6,
+      "symptoms": ["Fatigue", "Fluid retention (mild swelling)", "Elevated blood pressure"],
+      "effects": {
+        "filtrationModifier": 0.45,
+        "potassiumModifier": 1.2,
+        "organStress": {
+          "kidney": { "stress": 60, "inflammation": 25, "scarTissue": 15 },
+          "heart": { "stress": 20 }
+        }
+      }
+    },
+    {
+      "name": "Stage 4 (Severe GFR Decline)",
+      "threshold": 0.8,
+      "symptoms": ["Anemia (fatigue)", "Pruritus (itchy skin)", "Nausea", "Pronounced edema"],
+      "effects": {
+        "filtrationModifier": 0.2,
+        "potassiumModifier": 1.4,
+        "organStress": {
+          "kidney": { "stress": 85, "inflammation": 40, "scarTissue": 40, "functionalCapacity": 25 },
+          "heart": { "stress": 50, "inflammation": 15 }
+        }
+      }
+    },
+    {
+      "name": "Stage 5 (Kidney Failure / ESKD)",
+      "threshold": 1.0,
+      "symptoms": ["Uremia", "Severe hyperkalemia", "Pulmonary congestion", "Oliguria"],
+      "effects": {
+        "filtrationModifier": 0.05,
+        "potassiumModifier": 1.8,
+        "organStress": {
+          "kidney": { "stress": 98, "inflammation": 60, "scarTissue": 75, "functionalCapacity": 5 },
+          "heart": { "stress": 80, "inflammation": 30, "perfusion": 70 },
+          "brain": { "stress": 40, "pain": 20 }
+        }
+      }
+    }
+  ],
+  "rules": {
+    "creatinineRiseCoefficient": 0.2,
+    "ureaRiseCoefficient": 4.0
+  },
+  "labs": {
+    "creatinine": [1.0, 1.4, 2.2, 4.0, 8.5],
+    "potassium": [4.0, 4.5, 5.2, 6.1, 7.2]
+  },
+  "education": {
+    "pathophysiology": "Chronic Kidney Disease involves gradual loss of renal function over months or years. The nephrons undergo hyperfiltration and subsequent hypertrophy, leading to glomerulosclerosis and tubulointerstitial fibrosis. This restricts the filtration of metabolic wastes (Creatinine, Urea) and impairs potassium, sodium, and water excretion, resulting in hyperkalemia, volume overload, and severe arterial hypertension.",
+    "links": ["Kidney", "Heart", "Bones"]
+  }
+}

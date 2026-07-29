@@ -1,0 +1,17 @@
+{
+  "id": "kidney",
+  "name": "Kidney",
+  "systemId": "renal",
+  "compartmentId": "abdominal",
+  "organSize": 150,
+  "genetics": "normal",
+  "congenitalConditions": [],
+  "baselineFunction": 100,
+  "inputs": ["oxygen", "water", "sodium", "potassium", "urea", "creatinine", "toxins"],
+  "outputs": ["carbonDioxide", "urine"],
+  "description": "Two reddish-brown bean-shaped organs that filter waste, excess water, and toxins from the blood.",
+  "location": "Retroperitoneal space in the abdominal cavity, on either side of the spine.",
+  "connectedOrgans": ["bladder", "heart"],
+  "bloodSupply": "Renal arteries",
+  "nerveSupply": "Renal plexus (sympathetic fibers)"
+}

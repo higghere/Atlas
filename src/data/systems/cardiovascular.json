@@ -1,0 +1,7 @@
+{
+  "id": "cardiovascular",
+  "name": "Cardiovascular System",
+  "organIds": ["heart"],
+  "failureThreshold": 20,
+  "description": "Circulates blood to transport nutrients, oxygen, carbon dioxide, hormones, and blood cells to and from cells."
+}

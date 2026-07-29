@@ -1,0 +1,17 @@
+{
+  "id": "liver",
+  "name": "Liver",
+  "systemId": "hepatic",
+  "compartmentId": "abdominal",
+  "organSize": 1500,
+  "genetics": "normal",
+  "congenitalConditions": [],
+  "baselineFunction": 100,
+  "inputs": ["oxygen", "glucose", "toxins", "metformin", "ibuprofen"],
+  "outputs": ["urea", "glucose", "heat"],
+  "description": "A large organ involved in detoxification, protein synthesis, glucose storage, and bile production.",
+  "location": "Upper right quadrant of the abdominal cavity, below the diaphragm.",
+  "connectedOrgans": ["heart", "stomach", "pancreas"],
+  "bloodSupply": "Hepatic artery and portal vein",
+  "nerveSupply": "Hepatic plexus (vagus nerve and sympathetic fibers)"
+}

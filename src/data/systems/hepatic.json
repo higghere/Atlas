@@ -1,0 +1,7 @@
+{
+  "id": "hepatic",
+  "name": "Hepatic System",
+  "organIds": ["liver"],
+  "failureThreshold": 20,
+  "description": "Responsible for metabolic regulation, detoxification, and glycogen storage."
+}

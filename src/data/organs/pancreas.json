@@ -1,0 +1,17 @@
+{
+  "id": "pancreas",
+  "name": "Pancreas",
+  "systemId": "endocrine",
+  "compartmentId": "abdominal",
+  "organSize": 80,
+  "genetics": "normal",
+  "congenitalConditions": [],
+  "baselineFunction": 100,
+  "inputs": ["oxygen", "glucose"],
+  "outputs": ["insulin", "carbonDioxide"],
+  "description": "An endocrine and exocrine gland producing key metabolic hormones like insulin and glucagon, and digestive enzymes.",
+  "location": "Deep in the abdomen, retroperitoneal, behind the stomach.",
+  "connectedOrgans": ["stomach", "liver", "intestine"],
+  "bloodSupply": "Pancreaticoduodenal and splenic arteries",
+  "nerveSupply": "Celiac plexus and vagus nerve"
+}

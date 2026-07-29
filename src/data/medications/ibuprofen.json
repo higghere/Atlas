@@ -1,0 +1,31 @@
+{
+  "id": "ibuprofen",
+  "name": "Ibuprofen",
+  "targets": ["skin", "muscles", "kidney"],
+  "halfLife": 2.0,
+  "adme": {
+    "absorption": 0.85,
+    "distribution": "Highly protein-bound (>99%), distributes into synovial fluid.",
+    "metabolism": "Metabolized extensively in the liver via CYP2C9 to inactive metabolites.",
+    "excretion": "Excreted rapidly via kidneys as metabolites and conjugates."
+  },
+  "effects": {
+    "inflammation": -0.5,
+    "pain": -0.6,
+    "kidneyPerfusion": -0.2,
+    "kidneyStress": 0.25
+  },
+  "contraindications": {
+    "gfrLimit": 15,
+    "conditions": ["active_peptic_ulcer", "severe_heart_failure", "renal_failure"]
+  },
+  "sideEffects": {
+    "renal": "Acute kidney injury due to afferent arteriole vasoconstriction",
+    "gastric": "Gastric mucosal damage and ulceration",
+    "cardiovascular": "Fluid retention and increased blood pressure"
+  },
+  "dosage": {
+    "usual": "200mg - 400mg every 4-6 hours",
+    "max": "3200mg daily"
+  }
+}

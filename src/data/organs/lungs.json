@@ -1,0 +1,17 @@
+{
+  "id": "lungs",
+  "name": "Lungs",
+  "systemId": "respiratory",
+  "compartmentId": "thoracic",
+  "organSize": 850,
+  "genetics": "normal",
+  "congenitalConditions": [],
+  "baselineFunction": 100,
+  "inputs": ["oxygen", "carbonDioxide", "glucose"],
+  "outputs": ["oxygen", "carbonDioxide", "heat"],
+  "description": "Primary organs of respiration that exchange oxygen and carbon dioxide between the blood and atmospheric air.",
+  "location": "Thoracic cavity, surrounding the heart in the mediastinum.",
+  "connectedOrgans": ["heart", "trachea"],
+  "bloodSupply": "Pulmonary arteries (for gas exchange) and bronchial arteries (for tissue perfusion)",
+  "nerveSupply": "Pulmonary plexus (vagus nerve and sympathetic trunk)"
+}

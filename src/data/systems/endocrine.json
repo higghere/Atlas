@@ -1,0 +1,7 @@
+{
+  "id": "endocrine",
+  "name": "Endocrine System",
+  "organIds": ["pancreas"],
+  "failureThreshold": 20,
+  "description": "Produces hormones that regulate metabolism, growth, and tissue function."
+}

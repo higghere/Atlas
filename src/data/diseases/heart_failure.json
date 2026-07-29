@@ -1,0 +1,84 @@
+{
+  "id": "heart_failure",
+  "name": "Congestive Heart Failure",
+  "metadata": {
+    "category": "Cardiovascular",
+    "prevalence": "High",
+    "riskFactors": ["hypertension", "coronaryArteryDisease", "myocardialInfarction"]
+  },
+  "stages": [
+    {
+      "name": "Stage A (At Risk / Asymptomatic)",
+      "threshold": 0.2,
+      "symptoms": ["No physical limitations", "Slight fatigue during high exertion"],
+      "effects": {
+        "cardiacOutputModifier": 0.95,
+        "organStress": {
+          "heart": { "stress": 10 }
+        }
+      }
+    },
+    {
+      "name": "Stage B (Mild Heart Failure)",
+      "threshold": 0.4,
+      "symptoms": ["Mild shortness of breath during exercise", "Minor fluid retention in ankles"],
+      "effects": {
+        "cardiacOutputModifier": 0.8,
+        "organStress": {
+          "heart": { "stress": 30, "inflammation": 10 }
+        }
+      }
+    },
+    {
+      "name": "Stage C (Moderate HF - Congestive)",
+      "threshold": 0.6,
+      "symptoms": ["Shortness of breath on mild activity", "Orthopnea (cannot sleep flat)", "Fatigue"],
+      "effects": {
+        "cardiacOutputModifier": 0.6,
+        "organStress": {
+          "heart": { "stress": 60, "inflammation": 20, "functionalCapacity": 70 },
+          "lungs": { "stress": 30, "perfusion": 90 },
+          "kidney": { "stress": 20, "perfusion": 85 }
+        }
+      }
+    },
+    {
+      "name": "Stage D (Severe HF - Decompensated)",
+      "threshold": 0.8,
+      "symptoms": ["Shortness of breath at rest", "Severe peripheral edema", "Systemic vascular congestion"],
+      "effects": {
+        "cardiacOutputModifier": 0.4,
+        "organStress": {
+          "heart": { "stress": 80, "inflammation": 35, "functionalCapacity": 45, "scarTissue": 20 },
+          "lungs": { "stress": 60, "perfusion": 75, "inflammation": 25 },
+          "kidney": { "stress": 55, "perfusion": 65, "functionalCapacity": 50 }
+        }
+      }
+    },
+    {
+      "name": "Cardiogenic Shock / End-stage HF",
+      "threshold": 1.0,
+      "symptoms": ["Severe hypotension", "Confusion (hypoxia)", "Cyanosis", "Complete pulmonary edema"],
+      "effects": {
+        "cardiacOutputModifier": 0.2,
+        "organStress": {
+          "heart": { "stress": 98, "inflammation": 50, "functionalCapacity": 15, "scarTissue": 40, "integrity": 60 },
+          "lungs": { "stress": 90, "perfusion": 50, "inflammation": 50, "functionalCapacity": 40 },
+          "kidney": { "stress": 85, "perfusion": 45, "functionalCapacity": 20 },
+          "brain": { "stress": 50, "perfusion": 70, "oxygenation": 80 }
+        }
+      }
+    }
+  ],
+  "rules": {
+    "backlogFluidRate": 0.1,
+    "ejectionFractionDecay": 0.005
+  },
+  "labs": {
+    "bnp": [80, 150, 450, 950, 2200]
+  },
+  "education": {
+    "pathophysiology": "Congestive Heart Failure occurs when the cardiac muscle is weakened or stiffened (often due to ischemic damage or chronic hypertensive load), preventing the ventricles from pumping blood efficiently. Systolic heart failure leads to reduced stroke volume and cardiac output, causing tissue hypoperfusion. Simultaneously, blood backs up in the pulmonary circulation (left-sided failure, causing dyspnea) or systemic circulation (right-sided failure, causing ascites and peripheral edema). The kidneys respond to lower perfusion by retaining sodium and water (RAAS activation), which ironically worsens fluid congestion and heart stress.",
+    "links": ["Heart", "Lungs", "Kidney"]
+  }
+}

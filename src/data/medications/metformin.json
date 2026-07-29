@@ -1,0 +1,29 @@
+{
+  "id": "metformin",
+  "name": "Metformin",
+  "targets": ["liver", "pancreas"],
+  "halfLife": 6.2,
+  "adme": {
+    "absorption": 0.6,
+    "distribution": "Distributed widely in extracellular fluid, does not bind to plasma proteins.",
+    "metabolism": "Not metabolized by the liver; excreted unchanged.",
+    "excretion": "Excreted via renal glomerular filtration and active tubular secretion."
+  },
+  "effects": {
+    "liverGlucoseProduction": -0.3,
+    "insulinSensitivity": 0.4,
+    "pancreasStress": -0.1
+  },
+  "contraindications": {
+    "gfrLimit": 30,
+    "conditions": ["severe_renal_impairment", "metabolic_acidosis"]
+  },
+  "sideEffects": {
+    "gastrointestinal": "Diarrhea, nausea, vomiting, abdominal bloating",
+    "metabolic": "Lactic acidosis (rare but severe, especially in renal impairment)"
+  },
+  "dosage": {
+    "usual": "500mg - 2000mg daily",
+    "max": "2550mg daily"
+  }
+}

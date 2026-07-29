@@ -1,0 +1,7 @@
+{
+  "id": "immune",
+  "name": "Immune System",
+  "organIds": [],
+  "failureThreshold": 20,
+  "description": "Defends the body against infection, pathogens, and cellular damage."
+}

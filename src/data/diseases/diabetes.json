@@ -1,0 +1,86 @@
+{
+  "id": "diabetes",
+  "name": "Type II Diabetes Mellitus",
+  "metadata": {
+    "category": "Metabolic",
+    "prevalence": "High",
+    "riskFactors": ["sedentary", "highBmi", "poorDiet"]
+  },
+  "stages": [
+    {
+      "name": "Prediabetes",
+      "threshold": 0.2,
+      "symptoms": ["Mild fatigue", "Increased postprandial glucose levels"],
+      "effects": {
+        "glucoseModifier": 1.2,
+        "insulinModifier": 1.5,
+        "organStress": {}
+      }
+    },
+    {
+      "name": "Early Diabetes",
+      "threshold": 0.4,
+      "symptoms": ["Polyuria (frequent urination)", "Polydipsia (increased thirst)", "Mild fatigue"],
+      "effects": {
+        "glucoseModifier": 1.5,
+        "insulinModifier": 2.0,
+        "organStress": {
+          "pancreas": { "stress": 20 }
+        }
+      }
+    },
+    {
+      "name": "Moderate Diabetes",
+      "threshold": 0.6,
+      "symptoms": ["Blurred vision", "Slight tingling in hands and feet", "Delayed healing"],
+      "effects": {
+        "glucoseModifier": 2.2,
+        "insulinModifier": 1.4,
+        "organStress": {
+          "pancreas": { "stress": 50, "inflammation": 15 },
+          "kidney": { "stress": 30, "perfusion": 90 }
+        }
+      }
+    },
+    {
+      "name": "Advanced Diabetes",
+      "threshold": 0.8,
+      "symptoms": ["Peripheral neuropathy (numbness)", "Microalbuminuria", "Pruritus"],
+      "effects": {
+        "glucoseModifier": 3.0,
+        "insulinModifier": 0.6,
+        "organStress": {
+          "pancreas": { "stress": 80, "functionalCapacity": 50, "inflammation": 30 },
+          "kidney": { "stress": 60, "perfusion": 75, "inflammation": 20 },
+          "heart": { "stress": 30, "perfusion": 85 }
+        }
+      }
+    },
+    {
+      "name": "Complications (Diabetic Crisis)",
+      "threshold": 1.0,
+      "symptoms": ["Retinopathy (severe visual impairment)", "Diabetic Nephropathy", "Poor wound healing", "DKA Risk"],
+      "effects": {
+        "glucoseModifier": 4.5,
+        "insulinModifier": 0.1,
+        "organStress": {
+          "pancreas": { "stress": 95, "functionalCapacity": 15, "inflammation": 50 },
+          "kidney": { "stress": 90, "perfusion": 55, "inflammation": 45, "scarTissue": 25 },
+          "heart": { "stress": 60, "perfusion": 70, "integrity": 85 },
+          "brain": { "stress": 40, "perfusion": 85 }
+        }
+      }
+    }
+  ],
+  "rules": {
+    "glucoseRisePerTick": 0.05,
+    "vascularPerfusionDecay": 0.001
+  },
+  "labs": {
+    "hba1c": [5.6, 6.4, 7.5, 9.0, 11.5]
+  },
+  "education": {
+    "pathophysiology": "Type II Diabetes Mellitus is a metabolic disease characterized by chronic hyperglycemia resulting from insulin resistance combined with insufficient compensatory insulin secretion. Over time, high glucose causes non-enzymatic glycation of arterial walls, resulting in endothelial damage, peripheral neuropathy, glomerulosclerosis (renal damage), and accelerated coronary artery atherosclerosis.",
+    "links": ["Pancreas", "Kidney", "Heart", "Brain"]
+  }
+}

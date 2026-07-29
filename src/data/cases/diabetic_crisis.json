@@ -1,0 +1,43 @@
+{
+  "id": "diabetic_crisis",
+  "name": "Diabetic Nephropathy & Crisis Case",
+  "description": "A 55-year-old male with chronic uncontrolled Type II Diabetes and early-stage hypertension presents with fatigue, peripheral edema, and severe polydipsia.",
+  "profile": {
+    "composition": {
+      "weightKg": 95,
+      "heightCm": 178,
+      "sex": "male",
+      "age": 55,
+      "bodyFatPercentage": 32,
+      "muscleMassKg": 35,
+      "waterPercentage": 48,
+      "boneDensityScore": -0.5,
+      "bmi": 30.0,
+      "bmr": 1800
+    },
+    "lifestyle": {
+      "smoking": "light",
+      "alcohol": "moderate",
+      "exercise": "sedentary",
+      "sleep": 6,
+      "diet": "poor"
+    },
+    "history": {
+      "diseases": ["diabetes"],
+      "allergies": [],
+      "surgeries": [],
+      "medications": []
+    }
+  },
+  "initialEvents": [
+    {
+      "id": "diabetes_activation",
+      "name": "Activate Uncontrolled Diabetes",
+      "priority": "critical",
+      "targetType": "global",
+      "targetId": "diabetes",
+      "ticksRemaining": 0,
+      "description": "Active diabetic metabolism initiated."
+    }
+  ]
+}

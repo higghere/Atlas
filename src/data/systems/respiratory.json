@@ -1,0 +1,7 @@
+{
+  "id": "respiratory",
+  "name": "Respiratory System",
+  "organIds": ["lungs"],
+  "failureThreshold": 20,
+  "description": "Responsible for taking in oxygen and expelling carbon dioxide from the body."
+}

@@ -1,0 +1,7 @@
+{
+  "id": "nervous",
+  "name": "Nervous System",
+  "organIds": ["brain"],
+  "failureThreshold": 20,
+  "description": "Coordinates body actions and transmits sensory and motor signals."
+}

@@ -1,0 +1,17 @@
+{
+  "id": "heart",
+  "name": "Heart",
+  "systemId": "cardiovascular",
+  "compartmentId": "thoracic",
+  "organSize": 300,
+  "genetics": "normal",
+  "congenitalConditions": [],
+  "baselineFunction": 100,
+  "inputs": ["oxygen", "glucose", "adrenaline", "calcium"],
+  "outputs": ["carbonDioxide", "heat"],
+  "description": "A hollow, muscular organ that pumps blood throughout the blood vessels of the circulatory system.",
+  "location": "Middle mediastinum of the thoracic cavity, between the lungs.",
+  "connectedOrgans": ["lungs", "aorta"],
+  "bloodSupply": "Coronary arteries",
+  "nerveSupply": "Vagus nerve (parasympathetic) and sympathetic trunk"
+}

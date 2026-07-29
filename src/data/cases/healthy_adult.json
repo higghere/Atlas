@@ -1,0 +1,33 @@
+{
+  "id": "healthy_adult",
+  "name": "Healthy Adult Baseline",
+  "description": "A 25-year-old female with a balanced diet, regular exercise, and no pre-existing chronic conditions.",
+  "profile": {
+    "composition": {
+      "weightKg": 60,
+      "heightCm": 168,
+      "sex": "female",
+      "age": 25,
+      "bodyFatPercentage": 22,
+      "muscleMassKg": 24,
+      "waterPercentage": 60,
+      "boneDensityScore": 1.0,
+      "bmi": 21.3,
+      "bmr": 1400
+    },
+    "lifestyle": {
+      "smoking": "none",
+      "alcohol": "none",
+      "exercise": "active",
+      "sleep": 8,
+      "diet": "healthy"
+    },
+    "history": {
+      "diseases": [],
+      "allergies": [],
+      "surgeries": [],
+      "medications": []
+    }
+  },
+  "initialEvents": []
+}
