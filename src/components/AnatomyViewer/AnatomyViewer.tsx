@@ -795,9 +795,14 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
 
                 {/* Upper/Lower extremity limbs */}
                 <line x1="-42" y1="-114" x2="-75" y2="-40" strokeWidth="2.8" />
-                <line x1="-75" y1="-40" x2="-95" y2="28" strokeWidth="1.8" />
+                {/* Left Forearm: Radius (lateral, thumb) & Ulna (medial, pinky) */}
+                <line x1="-75" y1="-40" x2="-97" y2="28" strokeWidth="1.6" />
+                <line x1="-73" y1="-40" x2="-93" y2="28" strokeWidth="1.6" />
+
                 <line x1="42" y1="-114" x2="75" y2="-40" strokeWidth="2.8" />
-                <line x1="75" y1="-40" x2="95" y2="28" strokeWidth="1.8" />
+                {/* Right Forearm: Radius (lateral, thumb) & Ulna (medial, pinky) */}
+                <line x1="75" y1="-40" x2="97" y2="28" strokeWidth="1.6" />
+                <line x1="73" y1="-40" x2="93" y2="28" strokeWidth="1.6" />
 
                 <line x1="-22" y1="4" x2="-35" y2="120" strokeWidth="4.2" /> 
                 <circle cx="-35" cy="125" r="3.2" fill="#475569" stroke="none" /> 
