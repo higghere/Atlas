@@ -1,0 +1,11 @@
+{
+  "heart": { "label": "Heart", "x": 170, "y": 185 },
+  "ascending_aorta": { "label": "Ascending Aorta", "x": 170, "y": 150 },
+  "aortic_arch": { "label": "Aortic Arch", "x": 168, "y": 125 },
+  "svc": { "label": "Superior Vena Cava", "x": 160, "y": 140 },
+  "ivc": { "label": "Inferior Vena Cava", "x": 174, "y": 240 },
+  "left_common_carotid": { "label": "L. Common Carotid", "x": 164, "y": 80 },
+  "right_common_carotid": { "label": "R. Common Carotid", "x": 180, "y": 80 },
+  "femoral_artery_left": { "label": "L. Femoral Artery", "x": 148, "y": 380 },
+  "femoral_artery_right": { "label": "R. Femoral Artery", "x": 188, "y": 380 }
+}

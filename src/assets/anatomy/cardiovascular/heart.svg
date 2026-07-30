@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 560">
+  <g id="heart" data-name="Heart Chambers">
+    <path id="heart_ra" d="M 160,165 C 155,170 155,182 162,188 C 168,188 170,175 166,165 Z" fill="#991b1b" stroke="#dc2626" stroke-width="2"/>
+    <path id="heart_rv" d="M 162,188 C 160,198 166,208 172,207 C 174,198 172,188 162,188 Z" fill="#991b1b" stroke="#dc2626" stroke-width="2"/>
+    <path id="heart_la" d="M 172,162 C 178,160 184,166 182,176 C 176,182 172,174 172,162 Z" fill="#991b1b" stroke="#dc2626" stroke-width="2"/>
+    <path id="heart_lv" d="M 172,176 C 174,188 182,210 176,214 C 168,206 166,192 170,178 Z" fill="#991b1b" stroke="#dc2626" stroke-width="2"/>
+  </g>
+</svg>

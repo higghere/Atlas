@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import skeletalPng from '../../assets/skeletal_system.png';
 import muscularPng from '../../assets/muscular_system.png';
 import cardiovascularPng from '../../assets/cardiovascular_system.png';
+import digestivePng from '../../assets/digestive_system.png';
 import { OrganNode } from '../../types/physiology';
 import { Eye, EyeOff, Search, Network } from 'lucide-react';
 import { bonesCatalog, BoneMetadata } from '../../data/bones';
@@ -20,16 +21,16 @@ import { MUSCLE_HIT_ZONES } from '../../atlas/muscles/render/muscleHitZones';
 import { MuscleSearchIndex } from '../../atlas/muscles/search/muscleSearch';
 import { MuscleInteraction } from '../../atlas/muscles/interaction/muscleInteraction';
 import { MUSCLE_GROUP_META, FASCIAL_LAYER_META } from '../../atlas/muscles/layers/fascialLayers';
-import {
-  ALL_VASCULAR_NODES,
-  VASCULAR_NODES_MAP,
-  CARDIOVASCULAR_SUBTREES,
-  getAnatomicalHierarchyPath,
-  getCirculatoryFlowLoop,
-  filterVesselsByLOD,
-  searchVascularNodes
-} from '../../atlas/cardiovascular/data/vascularData';
-import { CardiovascularNode, LODLevel } from '../../atlas/cardiovascular/types';
+import { VesselComponent, LODLevel } from '../../packages/cardiovascular/entities/VesselComponent';
+import { ALL_CARDIOVASCULAR_NODES, VASCULAR_CATALOG_MAP } from '../../packages/cardiovascular/data/cardiovascularData';
+import { CirculationGraph } from '../../packages/cardiovascular/graph/CirculationGraph';
+import { CardiovascularAtlasRenderer } from '../../packages/cardiovascular/render/CardiovascularAtlasRenderer';
+import { CardiovascularExplorer } from '../../packages/cardiovascular/components/CardiovascularExplorer';
+import { CardiovascularInspector } from '../../packages/cardiovascular/components/CardiovascularInspector';
+import { DIGESTIVE_CATALOG_MAP } from '../../packages/digestive/data/digestiveData';
+import { DigestiveAtlasRenderer } from '../../packages/digestive/render/DigestiveAtlasRenderer';
+import { DigestiveExplorer } from '../../packages/digestive/components/DigestiveExplorer';
+import { DigestiveInspector } from '../../packages/digestive/components/DigestiveInspector';
 
 interface AnatomyViewerProps {
   organs: Record<string, OrganNode>;
@@ -48,7 +49,16 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
   onSelectSystem,
   activeMeds
 }) => {
-  // Reference image & overlay layer
+  // Phase 4 Cardiovascular state
+  const [selectedVesselId, setSelectedVesselId] = useState<string | null>(null);
+  const [cardioLOD, setCardioLOD] = useState<LODLevel>(4);
+  const [highlightMode, setHighlightMode] = useState<'none' | 'upstream' | 'downstream' | 'both'>('both');
+
+  const visibleVessels = useMemo(() => {
+    return CirculationGraph.filterByLOD(cardioLOD);
+  }, [cardioLOD]);
+
+  // Overlay & reference image state
   const [showRefImage, setShowRefImage] = useState(true);
   const [refImageOpacity, setRefImageOpacity] = useState(1.0);
   const [showHitZones, setShowHitZones] = useState(true);
@@ -62,13 +72,6 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
   const [muscleSearch, setMuscleSearch] = useState('');
   const [isolatedMuscleId, setIsolatedMuscleId] = useState<string | null>(null);
   const [hiddenMuscles, setHiddenMuscles] = useState<Set<string>>(new Set());
-
-  // ── Phase 3: Cardiovascular System state ──────────────────────
-  const [showCardiovascularVessels, setShowCardiovascularVessels] = useState(true);
-  const [cardioLODFilter, setCardioLODFilter] = useState<LODLevel>(4);
-  const [selectedVesselId, setSelectedVesselId] = useState<string | null>(null);
-  const [highlightTraceMode, setHighlightTraceMode] = useState<'hierarchy' | 'flow' | 'both'>('both');
-  const [vesselSearchQuery, setVesselSearchQuery] = useState('');
 
   // Legacy layer opacity states (kept for compatibility)
   const [opacitySkin, setOpacitySkin] = useState(0.1);
@@ -109,6 +112,7 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
     { id: 'skeletal',       icon: '🦴', name: 'Skeleton' },
     { id: 'muscular',       icon: '💪', name: 'Muscular' },
     { id: 'cardiovascular', icon: '🫀', name: 'Cardiovascular' },
+    { id: 'digestive',      icon: '🥗', name: 'Digestive' },
   ];
 
   // Auto preset layer states on select tabs
@@ -410,28 +414,42 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
           <Search className="w-4 h-4 text-slate-500 absolute left-2.5" />
         </div>
         <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-2 min-h-0">
-          {filteredTree.map(sys => (
-            <div key={sys.id} className="text-xs">
-              <div className="font-bold text-slate-400 bg-slate-950/20 px-2 py-1 rounded">
-                {sys.name}
+          {activeSystemId === 'cardiovascular' ? (
+            <CardiovascularExplorer
+              selectedVesselId={selectedVesselId}
+              onSelectVessel={onSelectOrgan}
+              searchQuery={treeSearch}
+            />
+          ) : activeSystemId === 'digestive' ? (
+            <DigestiveExplorer
+              selectedOrganId={selectedOrganId}
+              onSelectOrgan={onSelectOrgan}
+              searchQuery={treeSearch}
+            />
+          ) : (
+            filteredTree.map(sys => (
+              <div key={sys.id} className="text-xs">
+                <div className="font-bold text-slate-400 bg-slate-950/20 px-2 py-1 rounded">
+                  {sys.name}
+                </div>
+                <div className="pl-3 mt-1 flex flex-col gap-1 border-l border-slate-900 ml-2">
+                  {sys.children.map(child => (
+                    <button
+                      key={child.id}
+                      onClick={() => onSelectOrgan(selectedOrganId === child.id ? null : child.id)}
+                      className={`w-full text-left py-1 px-2 rounded hover:bg-slate-900/30 transition-all ${
+                        selectedOrganId === child.id
+                          ? 'text-medical-400 bg-medical-500/10 font-semibold'
+                          : 'text-slate-500 hover:text-slate-300'
+                      }`}
+                    >
+                      ├─ {child.name}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="pl-3 mt-1 flex flex-col gap-1 border-l border-slate-900 ml-2">
-                {sys.children.map(child => (
-                  <button
-                    key={child.id}
-                    onClick={() => onSelectOrgan(selectedOrganId === child.id ? null : child.id)}
-                    className={`w-full text-left py-1 px-2 rounded hover:bg-slate-900/30 transition-all ${
-                      selectedOrganId === child.id
-                        ? 'text-medical-400 bg-medical-500/10 font-semibold'
-                        : 'text-slate-500 hover:text-slate-300'
-                    }`}
-                  >
-                    ├─ {child.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
 
         {/* Selected Anatomical Element Inspector */}
@@ -441,13 +459,39 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
           </h4>
           {selectedOrganId ? (
             (() => {
+              const targetId = selectedOrganId || '';
+
+              // ── Digestive Organ Inspector (Phase 4) ────────────────
+              const digestiveComp = DIGESTIVE_CATALOG_MAP[targetId];
+              if (digestiveComp) {
+                return (
+                  <DigestiveInspector
+                    organ={digestiveComp}
+                    onSelectOrgan={onSelectOrgan}
+                  />
+                );
+              }
+
+              // ── Cardiovascular Vessel Inspector (Phase 4) ────────────────
+              const vesselComp = VASCULAR_CATALOG_MAP[targetId];
+              if (vesselComp) {
+                return (
+                  <CardiovascularInspector
+                    vessel={vesselComp}
+                    onSelectVessel={onSelectOrgan}
+                    highlightMode={highlightMode}
+                    onToggleHighlightMode={setHighlightMode}
+                  />
+                );
+              }
+
               // ── Muscle Inspector (Phase 2) ──────────────────────────
-              const muscleComp = registry.getComponent<MuscleComponent>(selectedOrganId, 'MuscleComponent');
+              const muscleComp = targetId ? registry.getComponent<MuscleComponent>(targetId, 'MuscleComponent') : null;
               if (muscleComp) {
                 const layerMeta = FASCIAL_LAYER_META[muscleComp.fascialLayer];
                 const groupMeta = MUSCLE_GROUP_META[muscleComp.muscleGroup];
-                const isIsolated = isolatedMuscleId === selectedOrganId;
-                const isHidden = hiddenMuscles.has(selectedOrganId);
+                const isIsolated = isolatedMuscleId === targetId;
+                const isHidden = hiddenMuscles.has(targetId);
 
                 return (
                   <div className="text-[10px] text-slate-300 flex flex-col gap-2.5 bg-slate-950/40 p-2.5 rounded border border-slate-900 max-h-[460px] overflow-y-auto select-text">
@@ -471,7 +515,7 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
                     {/* Interactive Action Controls */}
                     <div className="grid grid-cols-3 gap-1.5 border-y border-slate-900 py-1.5">
                       <button
-                        onClick={() => setIsolatedMuscleId(isIsolated ? null : selectedOrganId)}
+                        onClick={() => setIsolatedMuscleId(isIsolated ? null : targetId)}
                         className={`py-1 px-1.5 rounded text-[8px] font-bold uppercase transition-all ${
                           isIsolated ? 'bg-amber-500/20 text-amber-300 border border-amber-500/50' : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-850'
                         }`}
@@ -481,8 +525,8 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
                       <button
                         onClick={() => {
                           const next = new Set(hiddenMuscles);
-                          if (isHidden) next.delete(selectedOrganId);
-                          else next.add(selectedOrganId);
+                          if (isHidden) next.delete(targetId);
+                          else next.add(targetId);
                           setHiddenMuscles(next);
                         }}
                         className="py-1 px-1.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-850 text-[8px] font-bold uppercase"
@@ -573,23 +617,23 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
               }
 
               // ── Skeletal Bone Inspector (Phase 1) ─────────────────────
-              const boneComp = registry.getComponent<BoneComponent>(selectedOrganId, 'BoneComponent');
+              const boneComp = targetId ? registry.getComponent<BoneComponent>(targetId, 'BoneComponent') : null;
               if (boneComp) {
-                const desc = bonesCatalog.find(b => b.id === selectedOrganId)?.description || '';
-                const clinical = clinicalBoneDatabase[selectedOrganId];
+                const desc = bonesCatalog.find(b => b.id === targetId)?.description || '';
+                const clinical = clinicalBoneDatabase[targetId];
                 
                 // Query joint entities connecting this bone
                 const joints = registry.query(['JointComponent']);
                 const connectedJoints: JointComponent[] = [];
                 for (const jId of joints) {
                   const jComp = registry.getComponent<JointComponent>(jId, 'JointComponent');
-                  if (jComp && jComp.connectedBones.includes(selectedOrganId)) {
+                  if (jComp && jComp.connectedBones.includes(targetId)) {
                     connectedJoints.push(jComp);
                   }
                 }
 
-                const isIsolated = isolatedBoneId === selectedOrganId;
-                const isHidden = hiddenBones.has(selectedOrganId);
+                const isIsolated = isolatedBoneId === targetId;
+                const isHidden = hiddenBones.has(targetId);
 
                 return (
                   <div className="text-[10px] text-slate-300 flex flex-col gap-2.5 bg-slate-950/40 p-2.5 rounded border border-slate-900 max-h-[460px] overflow-y-auto select-text">
@@ -609,7 +653,7 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
                     <div className="grid grid-cols-3 gap-1.5 border-y border-slate-900 py-1.5">
                       <button
                         onClick={() => {
-                          setIsolatedBoneId(isIsolated ? null : selectedOrganId);
+                          setIsolatedBoneId(isIsolated ? null : targetId);
                           setShowAdjacentOnly(true);
                         }}
                         className={`py-1 px-1.5 rounded text-[8px] font-bold uppercase transition-all ${
@@ -621,8 +665,8 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
                       <button
                         onClick={() => {
                           const next = new Set(hiddenBones);
-                          if (isHidden) next.delete(selectedOrganId);
-                          else next.add(selectedOrganId);
+                          if (isHidden) next.delete(targetId);
+                          else next.add(targetId);
                           setHiddenBones(next);
                         }}
                         className="py-1 px-1.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-850 text-[8px] font-bold uppercase"
@@ -887,8 +931,8 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
             {/* LAYER 1: INNERBODY REFERENCE PNG */}
             {showRefImage && (
               <img
-                src={activeSystemId === 'muscular' ? muscularPng : skeletalPng}
-                alt={activeSystemId === 'muscular' ? 'Human Muscular System - Anterior View' : 'Human Skeletal System - Anterior View'}
+                src={activeSystemId === 'muscular' ? muscularPng : activeSystemId === 'cardiovascular' ? cardiovascularPng : activeSystemId === 'digestive' ? digestivePng : skeletalPng}
+                alt={activeSystemId === 'muscular' ? 'Human Muscular System - Anterior View' : activeSystemId === 'cardiovascular' ? 'Human Cardiovascular System - Anterior View' : activeSystemId === 'digestive' ? 'Human Digestive System - Anterior View' : 'Human Skeletal System - Anterior View'}
                 style={{
                   position: 'absolute',
                   inset: 0,
@@ -896,7 +940,7 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
                   height: '100%',
                   objectFit: 'contain',
                   opacity: refImageOpacity,
-                  filter: `invert(1) brightness(${activeSystemId === 'skeletal' || activeSystemId === 'muscular' ? 1.15 : 1.0}) contrast(1.1) saturate(1.3)`,
+                  filter: `invert(1) brightness(${activeSystemId === 'skeletal' || activeSystemId === 'muscular' || activeSystemId === 'cardiovascular' || activeSystemId === 'digestive' ? 1.15 : 1.0}) contrast(1.1) saturate(1.3)`,
                   mixBlendMode: 'screen',
                   transition: 'opacity 0.4s ease, filter 0.4s ease',
                   userSelect: 'none',
@@ -1076,68 +1120,35 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
                 });
               })()}
 
-              {/* CARDIOVASCULAR SVG VESSEL PATHS (PHASE 3) */}
-              {(activeSystemId === 'cardiovascular' || (activeSystemId === 'all' && showCardio)) && showCardiovascularVessels && (() => {
-                const activeVessels = filterVesselsByLOD(cardioLODFilter);
-                const hierarchyPath = selectedVesselId ? getAnatomicalHierarchyPath(selectedVesselId) : [];
-                const flowLoop = selectedVesselId ? getCirculatoryFlowLoop(selectedVesselId) : [];
-                const searchMatches = vesselSearchQuery.trim() ? new Set(searchVascularNodes(vesselSearchQuery).map(v => v.id)) : null;
+              {/* DIGESTIVE ATLAS HITBOX LAYER */}
+              {(activeSystemId === 'digestive' || activeSystemId === 'all') && (
+                <DigestiveAtlasRenderer
+                  selectedOrganId={selectedOrganId}
+                  onSelectOrgan={onSelectOrgan}
+                  onHoverOrgan={(organ, x, y) => {
+                    if (organ) {
+                      setHoveredOrgan({ id: organ.id, name: organ.name, x, y });
+                    } else {
+                      setHoveredOrgan(null);
+                    }
+                  }}
+                />
+              )}
 
-                return activeVessels.map(vessel => {
-                  const isSelected = selectedVesselId === vessel.id;
-                  const isHierarchyMatch = highlightTraceMode !== 'flow' && hierarchyPath.includes(vessel.id);
-                  const isFlowMatch = highlightTraceMode !== 'hierarchy' && flowLoop.includes(vessel.id);
-                  const isSearchMatch = searchMatches ? searchMatches.has(vessel.id) : true;
-                  const dimmed = (selectedVesselId && !isSelected && !isHierarchyMatch && !isFlowMatch) || (searchMatches && !isSearchMatch);
-
-                  const strokeOpacity = isSelected ? 1 : isHierarchyMatch || isFlowMatch ? 0.9 : dimmed ? 0.15 : 0.85;
-                  const strokeWidth = isSelected ? vessel.width + 2 : isHierarchyMatch || isFlowMatch ? vessel.width + 1 : Math.max(1, vessel.width * 0.75);
-                  const strokeColor = isSelected ? '#ff2a5f' : isHierarchyMatch ? '#38bdf8' : isFlowMatch ? '#a855f7' : vessel.color;
-
-                  return (
-                    <path
-                      key={`vessel-${vessel.id}`}
-                      d={vessel.path}
-                      fill="none"
-                      stroke={strokeColor}
-                      strokeWidth={strokeWidth}
-                      strokeOpacity={strokeOpacity}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      filter={isSelected ? 'url(#hz-glow-selected)' : undefined}
-                      style={{ cursor: 'pointer', transition: 'all 0.2s ease-out' }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedVesselId(vessel.id);
-                        setSelectedMuscleId(null);
-                        onSelectOrgan(null);
-                      }}
-                      onMouseEnter={(e) => {
-                        const rect = (e.currentTarget as SVGElement).closest('div')?.getBoundingClientRect();
-                        if (rect) {
-                          setHoveredOrgan({
-                            id: vessel.id,
-                            name: `${vessel.name} (${vessel.latinName})`,
-                            x: e.clientX - rect.left + 12,
-                            y: e.clientY - rect.top - 10
-                          });
-                        }
-                      }}
-                      onMouseMove={(e) => {
-                        const rect = (e.currentTarget as SVGElement).closest('div')?.getBoundingClientRect();
-                        if (rect) {
-                          setHoveredOrgan(prev => prev ? {
-                            ...prev,
-                            x: e.clientX - rect.left + 12,
-                            y: e.clientY - rect.top - 10
-                          } : null);
-                        }
-                      }}
-                      onMouseLeave={() => setHoveredOrgan(null)}
-                    />
-                  );
-                });
-              })()}
+              {/* CARDIOVASCULAR ATLAS HITBOX LAYER */}
+              {(activeSystemId === 'cardiovascular' || activeSystemId === 'all') && (
+                <CardiovascularAtlasRenderer
+                  selectedVesselId={selectedVesselId}
+                  onSelectVessel={setSelectedVesselId}
+                  onHoverVessel={(v, x, y) => {
+                    if (v) {
+                      setHoveredOrgan({ id: v.id, name: v.name, x, y });
+                    } else {
+                      setHoveredOrgan(null);
+                    }
+                  }}
+                />
+              )}
 
               {/* ANATOMICAL LANDMARK DOTS */}
               <g opacity="0.55" stroke="#22d3ee" strokeWidth="0.8" strokeDasharray="2,2">

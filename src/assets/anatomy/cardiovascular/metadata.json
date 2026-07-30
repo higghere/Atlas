@@ -1,0 +1,116 @@
+{
+  "system": "Cardiovascular",
+  "version": "1.0.0",
+  "structures": [
+    {
+      "id": "heart_ra",
+      "name": "Right Atrium",
+      "system": "Cardiovascular",
+      "type": "Chamber",
+      "description": "Receives deoxygenated systemic venous return from SVC and IVC.",
+      "bloodSupply": [],
+      "innervation": ["Vagus nerve", "Sympathetic trunk"],
+      "parent": "svc",
+      "children": ["heart_rv"]
+    },
+    {
+      "id": "heart_rv",
+      "name": "Right Ventricle",
+      "system": "Cardiovascular",
+      "type": "Chamber",
+      "description": "Pumps deoxygenated blood into pulmonary trunk.",
+      "bloodSupply": ["right_coronary"],
+      "innervation": [],
+      "parent": "heart_ra",
+      "children": ["pulmonary_trunk"]
+    },
+    {
+      "id": "heart_la",
+      "name": "Left Atrium",
+      "system": "Cardiovascular",
+      "type": "Chamber",
+      "description": "Receives oxygenated pulmonary return from lungs.",
+      "bloodSupply": [],
+      "innervation": [],
+      "parent": "pulmonary_veins",
+      "children": ["heart_lv"]
+    },
+    {
+      "id": "heart_lv",
+      "name": "Left Ventricle",
+      "system": "Cardiovascular",
+      "type": "Chamber",
+      "description": "Pumps oxygenated blood into systemic arterial circulation.",
+      "bloodSupply": ["lad_artery", "circumflex_artery"],
+      "innervation": [],
+      "parent": "heart_la",
+      "children": ["ascending_aorta"]
+    },
+    {
+      "id": "ascending_aorta",
+      "name": "Ascending Aorta",
+      "system": "Cardiovascular",
+      "type": "Artery",
+      "description": "Primary high-pressure trunk from Left Ventricle.",
+      "bloodSupply": [],
+      "innervation": [],
+      "parent": "heart_lv",
+      "children": ["aortic_arch"]
+    },
+    {
+      "id": "aortic_arch",
+      "name": "Aortic Arch",
+      "system": "Cardiovascular",
+      "type": "Artery",
+      "description": "Curved arch giving rise to brachiocephalic, carotid, and subclavian arteries.",
+      "bloodSupply": [],
+      "innervation": [],
+      "parent": "ascending_aorta",
+      "children": ["brachiocephalic_artery", "left_common_carotid", "left_subclavian", "descending_aorta"]
+    },
+    {
+      "id": "svc",
+      "name": "Superior Vena Cava",
+      "system": "Cardiovascular",
+      "type": "Vein",
+      "description": "Drains upper body venous return into Right Atrium.",
+      "bloodSupply": [],
+      "innervation": [],
+      "parent": "jugular_veins",
+      "children": ["heart_ra"]
+    },
+    {
+      "id": "ivc",
+      "name": "Inferior Vena Cava",
+      "system": "Cardiovascular",
+      "type": "Vein",
+      "description": "Drains lower body venous return into Right Atrium.",
+      "bloodSupply": [],
+      "innervation": [],
+      "parent": "common_iliac_veins",
+      "children": ["heart_ra"]
+    },
+    {
+      "id": "femoral_artery_left",
+      "name": "Left Femoral Artery",
+      "system": "Cardiovascular",
+      "type": "Artery",
+      "description": "Major left thigh arterial trunk following femur.",
+      "bloodSupply": [],
+      "innervation": [],
+      "parent": "common_iliac_left",
+      "children": ["popliteal_artery_left"]
+    },
+    {
+      "id": "femoral_artery_right",
+      "name": "Right Femoral Artery",
+      "system": "Cardiovascular",
+      "type": "Artery",
+      "description": "Major right thigh arterial trunk following femur.",
+      "bloodSupply": [],
+      "innervation": [],
+      "parent": "common_iliac_right",
+      "children": ["popliteal_artery_right"]
+    }
+  ]
+}

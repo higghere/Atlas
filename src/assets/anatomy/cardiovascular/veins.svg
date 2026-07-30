@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 560">
+  <g id="veins" data-name="Systemic Veins">
+    <path id="svc" d="M 160,118 C 160,132 160,148 160,165" fill="none" stroke="#1d4ed8" stroke-width="6" stroke-linecap="round"/>
+    <path id="ivc" d="M 174,300 C 174,240 174,210 166,188" fill="none" stroke="#1d4ed8" stroke-width="6" stroke-linecap="round"/>
+    <path id="left_jugular_vein" d="M 158,54 C 158,74 158,94 160,118" fill="none" stroke="#2563eb" stroke-width="4" stroke-linecap="round"/>
+    <path id="right_jugular_vein" d="M 182,54 C 182,74 182,94 160,118" fill="none" stroke="#2563eb" stroke-width="4" stroke-linecap="round"/>
+    <path id="femoral_vein_left" d="M 148,555 C 148,490 152,380 156,306" fill="none" stroke="#2563eb" stroke-width="4" stroke-linecap="round"/>
+    <path id="femoral_vein_right" d="M 188,555 C 188,490 184,380 188,306" fill="none" stroke="#2563eb" stroke-width="4" stroke-linecap="round"/>
+  </g>
+</svg>

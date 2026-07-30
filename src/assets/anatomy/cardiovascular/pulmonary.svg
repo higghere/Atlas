@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 560">
+  <g id="pulmonary" data-name="Pulmonary Circulation">
+    <path id="pulmonary_trunk" d="M 168,180 C 166,168 166,155 168,148" fill="none" stroke="#2563eb" stroke-width="6" stroke-linecap="round"/>
+    <path id="pulmonary_artery_left" d="M 168,148 C 158,150 146,154 136,156" fill="none" stroke="#3b82f6" stroke-width="4" stroke-linecap="round"/>
+    <path id="pulmonary_artery_right" d="M 168,148 C 178,150 190,154 204,156" fill="none" stroke="#3b82f6" stroke-width="4" stroke-linecap="round"/>
+    <path id="pulmonary_vein_left" d="M 138,166 C 150,165 162,164 172,164" fill="none" stroke="#f43f5e" stroke-width="4" stroke-linecap="round"/>
+    <path id="pulmonary_vein_right" d="M 202,166 C 190,165 180,164 172,164" fill="none" stroke="#f43f5e" stroke-width="4" stroke-linecap="round"/>
+  </g>
+</svg>

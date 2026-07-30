@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 560">
+  <g id="arteries" data-name="Systemic Arteries">
+    <path id="ascending_aorta" d="M 170,165 C 168,152 168,142 172,134" fill="none" stroke="#dc2626" stroke-width="6" stroke-linecap="round"/>
+    <path id="aortic_arch" d="M 172,134 C 174,122 165,118 162,128" fill="none" stroke="#dc2626" stroke-width="6" stroke-linecap="round"/>
+    <path id="descending_aorta" d="M 162,128 C 164,180 166,230 168,284" fill="none" stroke="#dc2626" stroke-width="6" stroke-linecap="round"/>
+    <path id="left_common_carotid" d="M 166,120 C 164,102 162,72 162,54" fill="none" stroke="#dc2626" stroke-width="4" stroke-linecap="round"/>
+    <path id="right_common_carotid" d="M 186,110 C 182,92 178,72 178,54" fill="none" stroke="#dc2626" stroke-width="4" stroke-linecap="round"/>
+    <path id="left_subclavian" d="M 162,124 C 146,120 128,122 118,126" fill="none" stroke="#dc2626" stroke-width="4" stroke-linecap="round"/>
+    <path id="left_brachial_artery" d="M 100,190 C 98,220 96,250 94,276" fill="none" stroke="#dc2626" stroke-width="4" stroke-linecap="round"/>
+    <path id="right_subclavian" d="M 186,110 C 196,114 212,120 222,126" fill="none" stroke="#dc2626" stroke-width="4" stroke-linecap="round"/>
+    <path id="right_brachial_artery" d="M 240,190 C 242,220 244,250 246,276" fill="none" stroke="#dc2626" stroke-width="4" stroke-linecap="round"/>
+    <path id="common_iliac_left" d="M 168,284 L 152,306" fill="none" stroke="#dc2626" stroke-width="4" stroke-linecap="round"/>
+    <path id="common_iliac_right" d="M 168,284 L 184,306" fill="none" stroke="#dc2626" stroke-width="4" stroke-linecap="round"/>
+    <path id="femoral_artery_left" d="M 152,306 C 148,340 148,390 146,440" fill="none" stroke="#dc2626" stroke-width="4" stroke-linecap="round"/>
+    <path id="femoral_artery_right" d="M 184,306 C 188,340 188,390 190,440" fill="none" stroke="#dc2626" stroke-width="4" stroke-linecap="round"/>
+  </g>
+</svg>
