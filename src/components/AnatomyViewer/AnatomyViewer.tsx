@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import skeletalPng from '../../assets/skeletal_system.png';
+import muscularPng from '../../assets/muscular_system.png';
 import { OrganNode } from '../../types/physiology';
 import { Eye, EyeOff, Search, Network } from 'lucide-react';
 import { bonesCatalog, BoneMetadata } from '../../data/bones';
@@ -12,6 +13,12 @@ import { SkeletalSearchIndex } from '../../atlas/skeleton/search/search';
 import { SkeletalValidator } from '../../atlas/skeleton/validation/validation';
 import { clinicalBoneDatabase } from '../../atlas/skeleton/metadata/boneMetadata';
 import { JointComponent } from '../../atlas/skeleton/joints/joints';
+import { muscleDatabase, muscleDatabaseMap } from '../../atlas/muscles/data/muscleData';
+import { MuscleComponent } from '../../atlas/muscles/entities/MuscleComponent';
+import { MUSCLE_HIT_ZONES } from '../../atlas/muscles/render/muscleHitZones';
+import { MuscleSearchIndex } from '../../atlas/muscles/search/muscleSearch';
+import { MuscleInteraction } from '../../atlas/muscles/interaction/muscleInteraction';
+import { MUSCLE_GROUP_META, FASCIAL_LAYER_META } from '../../atlas/muscles/layers/fascialLayers';
 
 interface AnatomyViewerProps {
   organs: Record<string, OrganNode>;
@@ -34,6 +41,16 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
   const [showRefImage, setShowRefImage] = useState(true);
   const [refImageOpacity, setRefImageOpacity] = useState(1.0);
   const [showHitZones, setShowHitZones] = useState(true);
+
+  // ── Phase 2: Muscle layer state ──────────────────────────────
+  const [showMuscleHitZones, setShowMuscleHitZones] = useState(true);
+  const [muscleLayerFilter, setMuscleLayerFilter] = useState<'all' | 'superficial' | 'intermediate' | 'deep' | 'intrinsic'>('all');
+  const [selectedMuscleId, setSelectedMuscleId] = useState<string | null>(null);
+  const [highlightSynergists, setHighlightSynergists] = useState(false);
+  const [highlightAntagonists, setHighlightAntagonists] = useState(false);
+  const [muscleSearch, setMuscleSearch] = useState('');
+  const [isolatedMuscleId, setIsolatedMuscleId] = useState<string | null>(null);
+  const [hiddenMuscles, setHiddenMuscles] = useState<Set<string>>(new Set());
 
   // Legacy layer opacity states (kept for compatibility)
   const [opacitySkin, setOpacitySkin] = useState(0.1);
@@ -70,8 +87,9 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
 
   // Emojis for system filter tabs
   const systemTabs = [
-    { id: 'all', icon: '🧍', name: 'Full Body' },
-    { id: 'skeletal', icon: '🦴', name: 'Skeleton' }
+    { id: 'all',      icon: '🧍', name: 'Full Body' },
+    { id: 'skeletal', icon: '🦴', name: 'Skeleton' },
+    { id: 'muscular', icon: '💪', name: 'Muscular' },
   ];
 
   // Auto preset layer states on select tabs
@@ -79,9 +97,15 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
     if (activeSystemId === 'skeletal') {
       setOpacitySkin(0.05); setOpacitySkeleton(0.95);
       setShowSkeleton(true); setShowSkin(true);
+      setShowMuscleHitZones(false);
+    } else if (activeSystemId === 'muscular') {
+      setOpacitySkin(0.05); setOpacitySkeleton(0.1);
+      setShowSkeleton(false); setShowSkin(true);
+      setShowMuscleHitZones(true);
     } else {
       setOpacitySkin(0.1); setOpacitySkeleton(0.35);
       setShowSkin(true); setShowSkeleton(true);
+      setShowMuscleHitZones(true);
     }
   }, [activeSystemId]);
 
@@ -308,6 +332,26 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
     }).filter(system => system.children.length > 0);
   }, [organTreeData, treeSearch, registry]);
 
+  // Muscle tree grouped by region
+  const muscleTreeData = useMemo(() => {
+    const groups = Object.entries(MUSCLE_GROUP_META).map(([groupId, meta]) => ({
+      id: `muscle-${groupId}`,
+      name: `${meta.emoji} ${meta.label}`,
+      children: muscleDatabase
+        .filter(m => m.muscleGroup === groupId)
+        .map(m => ({ id: m.id, name: m.displayName }))
+    })).filter(g => g.children.length > 0);
+    return groups;
+  }, []);
+
+  const filteredMuscleTree = useMemo(() => {
+    if (!muscleSearch.trim()) return muscleTreeData;
+    const matchedIds = MuscleSearchIndex.queryIds(muscleSearch);
+    return muscleTreeData
+      .map(g => ({ ...g, children: g.children.filter(c => matchedIds.has(c.id) || c.name.toLowerCase().includes(muscleSearch.toLowerCase())) }))
+      .filter(g => g.children.length > 0);
+  }, [muscleTreeData, muscleSearch]);
+
   const handleOrganHover = (e: React.MouseEvent, id: string) => {
     const bounds = viewportRef.current?.getBoundingClientRect();
     if (bounds) {
@@ -339,55 +383,336 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
           />
           <Search className="w-4 h-4 text-slate-500 absolute left-2.5" />
         </div>
-        <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-2 min-h-0">
-          {filteredTree.map(sys => (
-            <div key={sys.id} className="text-xs">
-              <div className="font-bold text-slate-400 bg-slate-950/20 px-2 py-1 rounded">
-                {sys.name}
-              </div>
-              <div className="pl-3 mt-1 flex flex-col gap-1 border-l border-slate-900 ml-2">
-                {sys.children.map(child => (
-                  <button
-                    key={child.id}
-                    onClick={() => onSelectOrgan(selectedOrganId === child.id ? null : child.id)}
-                    className={`w-full text-left py-1 px-2 rounded hover:bg-slate-900/30 transition-all ${
-                      selectedOrganId === child.id
-                        ? 'text-medical-400 bg-medical-500/10 font-semibold'
-                        : 'text-slate-500 hover:text-slate-300'
-                    }`}
-                  >
-                    ├─ {child.name}
-                  </button>
-                ))}
-              </div>
-            </div>
+        {/* System mode tabs: Skeletal vs Muscular */}
+        <div className="flex gap-1.5 mb-2">
+          {(['skeletal', 'muscular'] as const).map(mode => (
+            <button
+              key={mode}
+              onClick={() => onSelectSystem(mode)}
+              className={`flex-1 py-1 px-2 rounded text-[9px] font-bold uppercase tracking-wider transition-all ${
+                activeSystemId === mode
+                  ? mode === 'muscular'
+                    ? 'bg-orange-500/20 text-orange-300 border border-orange-500/50'
+                    : 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/50'
+                  : 'bg-slate-900 text-slate-500 border border-slate-800 hover:text-slate-300'
+              }`}
+            >
+              {mode === 'skeletal' ? '🦴 Skeleton' : '💪 Muscles'}
+            </button>
           ))}
         </div>
 
-        {/* Selected Anatomical Element Inspector */}
+        {activeSystemId !== 'muscular' ? (
+          /* ── SKELETAL TREE ── */
+          <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-2 min-h-0">
+            {filteredTree.map(sys => (
+              <div key={sys.id} className="text-xs">
+                <div className="font-bold text-slate-400 bg-slate-950/20 px-2 py-1 rounded">
+                  {sys.name}
+                </div>
+                <div className="pl-3 mt-1 flex flex-col gap-1 border-l border-slate-900 ml-2">
+                  {sys.children.map(child => (
+                    <button
+                      key={child.id}
+                      onClick={() => onSelectOrgan(selectedOrganId === child.id ? null : child.id)}
+                      className={`w-full text-left py-1 px-2 rounded hover:bg-slate-900/30 transition-all ${
+                        selectedOrganId === child.id
+                          ? 'text-medical-400 bg-medical-500/10 font-semibold'
+                          : 'text-slate-500 hover:text-slate-300'
+                      }`}
+                    >
+                      ├─ {child.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          /* ── MUSCULAR TREE ── */
+          <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-2 min-h-0">
+            {/* Fascial layer filter buttons */}
+            <div className="flex flex-wrap gap-1 mb-1">
+              {(['all', 'superficial', 'intermediate', 'deep'] as const).map(layer => (
+                <button
+                  key={layer}
+                  onClick={() => setMuscleLayerFilter(layer)}
+                  className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase transition-all ${
+                    muscleLayerFilter === layer
+                      ? 'bg-orange-500/20 text-orange-300 border border-orange-500/40'
+                      : 'bg-slate-900 text-slate-500 border border-slate-800'
+                  }`}
+                >
+                  {layer === 'all' ? 'All' : layer.slice(0,6)}
+                </button>
+              ))}
+            </div>
+            {filteredMuscleTree.map(grp => (
+              <div key={grp.id} className="text-xs">
+                <div className="font-bold text-orange-400/80 bg-orange-900/10 px-2 py-1 rounded border-l-2 border-orange-500/40">
+                  {grp.name}
+                </div>
+                <div className="pl-3 mt-1 flex flex-col gap-1 border-l border-slate-900 ml-2">
+                  {grp.children
+                    .filter(c => {
+                      if (muscleLayerFilter === 'all') return true;
+                      const m = muscleDatabaseMap.get(c.id);
+                      return m?.fascialLayer === muscleLayerFilter;
+                    })
+                    .map(child => {
+                      const m = muscleDatabaseMap.get(child.id);
+                      return (
+                        <button
+                          key={child.id}
+                          onClick={() => {
+                            setSelectedMuscleId(selectedMuscleId === child.id ? null : child.id);
+                            onSelectOrgan(null);
+                          }}
+                          className={`w-full text-left py-1 px-2 rounded hover:bg-orange-900/20 transition-all text-[9px] ${
+                            selectedMuscleId === child.id
+                              ? 'text-orange-300 bg-orange-500/10 font-semibold border-l-2 border-orange-400'
+                              : 'text-slate-500 hover:text-slate-300'
+                          }`}
+                        >
+                          <span className="opacity-50 mr-0.5">├─</span> {child.name}
+                          {m && <span className={`ml-1 text-[7px] opacity-50 ${
+                            m.fascialLayer === 'superficial' ? 'text-orange-400' :
+                            m.fascialLayer === 'intermediate' ? 'text-pink-400' :
+                            m.fascialLayer === 'deep' ? 'text-purple-400' : 'text-cyan-400'
+                          }`}>{m.fascialLayer.slice(0,4)}</span>}
+                        </button>
+                      );
+                    })}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── INSPECTOR PANEL ── */}
         <div className="border-t border-slate-900 mt-3 pt-3 flex flex-col gap-2 shrink-0">
           <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
             Anatomical Inspector
           </h4>
-          {selectedOrganId ? (
+
+          {/* MUSCLE INSPECTOR */}
+          {selectedMuscleId && activeSystemId === 'muscular' ? (() => {
+            const muscle = muscleDatabaseMap.get(selectedMuscleId);
+            if (!muscle) return <div className="text-slate-500 text-xs italic">Unknown muscle.</div>;
+            const isMuscleIsolated = isolatedMuscleId === selectedMuscleId;
+            const isMuscleHidden = hiddenMuscles.has(selectedMuscleId);
+            const synergistIds = MuscleInteraction.getSynergists(selectedMuscleId);
+            const antagonistIds = MuscleInteraction.getAntagonists(selectedMuscleId);
+            const layerMeta = FASCIAL_LAYER_META[muscle.fascialLayer];
+            const groupMeta = MUSCLE_GROUP_META[muscle.muscleGroup];
+            return (
+              <div className="text-[10px] text-slate-300 flex flex-col gap-2 bg-slate-950/40 p-2.5 rounded border border-orange-900/40 max-h-[500px] overflow-y-auto select-text">
+                {/* Header */}
+                <div className="flex justify-between items-start">
+                  <div>
+                    <div className="font-bold text-orange-300 text-xs leading-tight">{muscle.displayName}</div>
+                    <div className="text-[8px] text-slate-500 italic">{muscle.latinName}</div>
+                  </div>
+                  <div className="flex flex-col gap-0.5 items-end">
+                    <span className="text-[7px] px-1.5 py-0.5 rounded border" style={{ color: layerMeta.color, borderColor: layerMeta.color + '40', background: layerMeta.color + '15' }}>
+                      {layerMeta.label}
+                    </span>
+                    <span className="text-[7px] text-slate-500 bg-slate-900 border border-slate-800 px-1 rounded">
+                      {groupMeta.emoji} {groupMeta.label}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Action controls */}
+                <div className="grid grid-cols-3 gap-1 border-y border-slate-900 py-1.5">
+                  <button
+                    onClick={() => setIsolatedMuscleId(isMuscleIsolated ? null : selectedMuscleId)}
+                    className={`py-1 px-1 rounded text-[8px] font-bold uppercase transition-all ${
+                      isMuscleIsolated ? 'bg-orange-500/20 text-orange-300 border border-orange-500/50' : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800'
+                    }`}
+                  >{isMuscleIsolated ? 'Exit' : 'Isolate'}</button>
+                  <button
+                    onClick={() => {
+                      const next = new Set(hiddenMuscles);
+                      if (isMuscleHidden) next.delete(selectedMuscleId); else next.add(selectedMuscleId);
+                      setHiddenMuscles(next);
+                    }}
+                    className="py-1 px-1 rounded text-[8px] font-bold uppercase bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800"
+                  >{isMuscleHidden ? 'Show' : 'Hide'}</button>
+                  <button
+                    onClick={() => setHighlightSynergists(!highlightSynergists)}
+                    className={`py-1 px-1 rounded text-[8px] font-bold uppercase transition-all ${
+                      highlightSynergists ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/50' : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800'
+                    }`}
+                  >Syn</button>
+                </div>
+
+                {/* Origin */}
+                <div>
+                  <span className="text-slate-500 font-bold uppercase text-[8px] block">Origin:</span>
+                  <span className="text-emerald-400 block leading-snug">{muscle.originDescription}</span>
+                  <span className="text-[8px] text-slate-600">Bones: {muscle.originBones.map(b => b.replace('bone-','')).join(', ')}</span>
+                </div>
+
+                {/* Insertion */}
+                <div>
+                  <span className="text-slate-500 font-bold uppercase text-[8px] block">Insertion:</span>
+                  <span className="text-rose-400 block leading-snug">{muscle.insertionDescription}</span>
+                  <span className="text-[8px] text-slate-600">Bones: {muscle.insertionBones.map(b => b.replace('bone-','')).join(', ')}</span>
+                </div>
+
+                {/* Actions */}
+                <div className="border-t border-slate-900 pt-1.5">
+                  <span className="text-slate-500 font-bold uppercase text-[8px] block">Primary Action:</span>
+                  <span className="text-cyan-300 block leading-snug">{muscle.primaryAction}</span>
+                  {muscle.secondaryActions.length > 0 && (
+                    <div className="mt-1">
+                      <span className="text-slate-500 font-bold uppercase text-[8px] block">Also:</span>
+                      {muscle.secondaryActions.map((a, i) => <span key={i} className="text-slate-400 block text-[9px] leading-snug">• {a}</span>)}
+                    </div>
+                  )}
+                </div>
+
+                {/* Nerve & Blood */}
+                <div className="grid grid-cols-1 gap-1.5 border-t border-slate-900 pt-1.5">
+                  <div>
+                    <span className="text-slate-500 font-bold uppercase text-[8px] block">Innervation:</span>
+                    <span className="text-violet-300 block leading-snug">{muscle.innervation}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 font-bold uppercase text-[8px] block">Blood Supply:</span>
+                    <span className="text-red-400 block leading-snug">{muscle.bloodSupply}</span>
+                  </div>
+                </div>
+
+                {/* Synergists & Antagonists */}
+                {synergistIds.length > 0 && (
+                  <div className="border-t border-slate-900 pt-1.5">
+                    <span className="text-slate-500 font-bold uppercase text-[8px] block mb-0.5">Synergists:</span>
+                    <div className="flex flex-wrap gap-1">
+                      {synergistIds.map(id => {
+                        const sm = muscleDatabaseMap.get(id);
+                        return sm ? (
+                          <button key={id} onClick={() => setSelectedMuscleId(id)}
+                            className="text-[7px] px-1.5 py-0.5 rounded bg-emerald-900/30 text-emerald-400 border border-emerald-800/40 hover:bg-emerald-800/40 transition-all">
+                            {sm.displayName}
+                          </button>
+                        ) : null;
+                      })}
+                    </div>
+                  </div>
+                )}
+                {antagonistIds.length > 0 && (
+                  <div className="border-t border-slate-900 pt-1.5">
+                    <span className="text-slate-500 font-bold uppercase text-[8px] block mb-0.5">Antagonists:</span>
+                    <div className="flex flex-wrap gap-1">
+                      {antagonistIds.map(id => {
+                        const am = muscleDatabaseMap.get(id);
+                        return am ? (
+                          <button key={id} onClick={() => setSelectedMuscleId(id)}
+                            className="text-[7px] px-1.5 py-0.5 rounded bg-rose-900/30 text-rose-400 border border-rose-800/40 hover:bg-rose-800/40 transition-all">
+                            {am.displayName}
+                          </button>
+                        ) : null;
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Clinical */}
+                <div className="border-t border-slate-900 pt-1.5">
+                  <span className="text-slate-500 font-bold uppercase text-[8px] block">Clinical Notes:</span>
+                  <span className="text-slate-400 block italic leading-snug">{muscle.clinicalNotes}</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 font-bold uppercase text-[8px] block">Common Injuries:</span>
+                  <span className="text-amber-400 block leading-snug">{muscle.commonInjuries}</span>
+                </div>
+
+                {/* Fiber & joints */}
+                <div className="border-t border-slate-900 pt-1.5 grid grid-cols-2 gap-1 text-[8px] text-slate-500">
+                  <div><span className="font-bold block">Fiber Dir.:</span><span className="text-slate-400">{muscle.fiberDirection}</span></div>
+                  <div><span className="font-bold block">Joints:</span><span className="text-slate-400">{muscle.crossesJoints.join(', ') || '—'}</span></div>
+                </div>
+              </div>
+            );
+          })() : selectedOrganId ? (
             (() => {
               const boneComp = registry.getComponent<BoneComponent>(selectedOrganId, 'BoneComponent');
               if (boneComp) {
                 const desc = bonesCatalog.find(b => b.id === selectedOrganId)?.description || '';
                 const clinical = clinicalBoneDatabase[selectedOrganId];
-                
-                // Query joint entities connecting this bone
                 const joints = registry.query(['JointComponent']);
                 const connectedJoints: JointComponent[] = [];
                 for (const jId of joints) {
                   const jComp = registry.getComponent<JointComponent>(jId, 'JointComponent');
-                  if (jComp && jComp.connectedBones.includes(selectedOrganId)) {
-                    connectedJoints.push(jComp);
-                  }
+                  if (jComp && jComp.connectedBones.includes(selectedOrganId)) connectedJoints.push(jComp);
                 }
-
                 const isIsolated = isolatedBoneId === selectedOrganId;
                 const isHidden = hiddenBones.has(selectedOrganId);
+                return (
+                  <div className="text-[10px] text-slate-300 flex flex-col gap-2.5 bg-slate-950/40 p-2.5 rounded border border-slate-900 max-h-[460px] overflow-y-auto select-text">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="font-bold text-cyan-400 text-xs leading-tight">{boneComp.displayName}</div>
+                        <div className="text-[8px] text-slate-500 uppercase font-semibold tracking-wider">{boneComp.latinName}</div>
+                      </div>
+                      <span className="text-[8px] bg-slate-900 border border-slate-800 text-slate-400 px-1 rounded">
+                        {clinical?.boneType || 'flat'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-1.5 border-y border-slate-900 py-1.5">
+                      <button onClick={() => { setIsolatedBoneId(isIsolated ? null : selectedOrganId); setShowAdjacentOnly(true); }}
+                        className={`py-1 px-1.5 rounded text-[8px] font-bold uppercase transition-all ${isIsolated ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/50' : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-850'}`}>
+                        {isIsolated ? 'Exit Isolate' : 'Isolate'}
+                      </button>
+                      <button onClick={() => { const next = new Set(hiddenBones); if (isHidden) next.delete(selectedOrganId); else next.add(selectedOrganId); setHiddenBones(next); }}
+                        className="py-1 px-1.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-850 text-[8px] font-bold uppercase">
+                        {isHidden ? 'Show' : 'Hide'}
+                      </button>
+                      <button onClick={() => setShowAdjacentOnly(!showAdjacentOnly)}
+                        className={`py-1 px-1.5 rounded text-[8px] font-bold uppercase transition-all ${showAdjacentOnly ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/50' : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-850'}`}
+                        disabled={!isIsolated}>
+                        + Adjacent
+                      </button>
+                    </div>
+                    <p className="text-slate-400 leading-relaxed">{desc}</p>
+                    {clinical && (
+                      <div className="flex flex-col gap-2 border-t border-slate-900 pt-2">
+                        <div><span className="text-slate-500 font-semibold uppercase text-[8px] block">Arterial Supply:</span><span className="text-slate-400 block">{clinical.bloodSupply}</span></div>
+                        <div><span className="text-slate-500 font-semibold uppercase text-[8px] block">Innervation:</span><span className="text-slate-400 block">{clinical.nerveSupply}</span></div>
+                        {clinical.muscleOrigins.length > 0 && <div><span className="text-slate-500 font-semibold uppercase text-[8px] block">Muscle Origins:</span><span className="text-slate-400 block">{clinical.muscleOrigins.join(', ')}</span></div>}
+                        <div><span className="text-slate-500 font-semibold uppercase text-[8px] block">Clinical Notes:</span><span className="text-slate-400 block italic">{clinical.clinicalNotes}</span></div>
+                        <div><span className="text-slate-500 font-semibold uppercase text-[8px] block">Fractures:</span><span className="text-slate-400 block">{clinical.commonFractures}</span></div>
+                        <div><span className="text-slate-500 font-semibold uppercase text-[8px] block">Did You Know?</span><span className="text-slate-400 block">{clinical.interestingFacts}</span></div>
+                      </div>
+                    )}
+                    {connectedJoints.length > 0 && (
+                      <div className="mt-1.5 border-t border-slate-900 pt-1.5">
+                        <span className="text-slate-500 font-semibold uppercase text-[8px] block mb-1">Joint Articulations:</span>
+                        <div className="flex flex-col gap-1.5">
+                          {connectedJoints.map((j, i) => (
+                            <div key={i} className="bg-slate-950/40 p-1.5 rounded border border-slate-900">
+                              <div className="font-bold text-slate-300">{j.displayName}</div>
+                              <div className="text-[8px] text-slate-500 uppercase mt-0.5">Type: {j.jointType} | DoF: {j.degreesOfFreedom}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+              return <div className="text-slate-500 text-xs italic">Unknown element.</div>;
+            })()
+          ) : (
+            <div className="text-slate-500 text-[10px] italic bg-slate-950/20 p-2.5 rounded border border-slate-900/40 text-center">
+              {activeSystemId === 'muscular'
+                ? 'Click any muscle to inspect attachments, innervation and clinical data.'
+                : 'Select any bone to inspect its coordinate structures.'}
+            </div>
+          )}
+        </div>
 
                 return (
                   <div className="text-[10px] text-slate-300 flex flex-col gap-2.5 bg-slate-950/40 p-2.5 rounded border border-slate-900 max-h-[460px] overflow-y-auto select-text">
@@ -625,42 +950,69 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
           {/* LEFT OVERLAY: LAYER CONTROLS */}
           <div className="absolute top-4 left-4 p-3 bg-slate-900/90 border border-slate-800/60 rounded-xl backdrop-blur-md z-10 flex flex-col gap-2 text-[9px] text-slate-400 w-44 shadow-2xl">
             <div className="font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1 mb-1">
-              ANATOMICAL LAYERS
+              {activeSystemId === 'muscular' ? '💪 MUSCLE LAYERS' : '🦴 BONE LAYERS'}
             </div>
-            {([
-              { label: '📸 Reference Image', val: refImageOpacity, set: setRefImageOpacity, show: showRefImage, toggle: setShowRefImage },
-              { label: '🫥 Skin Envelope', val: opacitySkin, set: setOpacitySkin, show: showSkin, toggle: setShowSkin },
-              { label: '🦴 Skeleton Frame', val: opacitySkeleton, set: setOpacitySkeleton, show: showSkeleton, toggle: setShowSkeleton },
-              { label: '🎯 Hit Zones', val: showHitZones ? 1 : 0, set: (v: number) => setShowHitZones(v > 0), show: showHitZones, toggle: setShowHitZones }
-            ] as { label: string; val: number; set: (v: number) => void; show: boolean; toggle: (v: boolean) => void }[]).map(layer => (
-              <div key={layer.label} className="flex flex-col gap-0.5">
-                <div className="flex justify-between font-semibold items-center">
-                  <span>{layer.label}</span>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => {
-                        layer.toggle(!layer.show);
-                        layer.set(layer.show ? 0.0 : 1.0);
-                      }}
-                      className="text-slate-500 hover:text-slate-300"
-                    >
-                      {layer.show ? <Eye className="w-3 h-3 text-medical-400" /> : <EyeOff className="w-3 h-3" />}
-                    </button>
-                    <span className="text-slate-600 w-6 text-right">{Math.round(layer.val * 100)}%</span>
+            {activeSystemId === 'muscular' ? (
+              /* MUSCLE LAYER CONTROLS */
+              <>
+                {([
+                  { label: '📸 Reference Image', val: refImageOpacity, set: setRefImageOpacity, show: showRefImage, toggle: setShowRefImage },
+                  { label: '💪 Muscle Hit Zones', val: showMuscleHitZones ? 1 : 0, set: (v: number) => setShowMuscleHitZones(v > 0), show: showMuscleHitZones, toggle: setShowMuscleHitZones },
+                  { label: '🦴 Bone Overlay', val: showHitZones ? 0.4 : 0, set: (v: number) => setShowHitZones(v > 0), show: showHitZones, toggle: setShowHitZones },
+                ] as { label: string; val: number; set: (v: number) => void; show: boolean; toggle: (v: boolean) => void }[]).map(layer => (
+                  <div key={layer.label} className="flex flex-col gap-0.5">
+                    <div className="flex justify-between font-semibold items-center">
+                      <span>{layer.label}</span>
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => { layer.toggle(!layer.show); layer.set(layer.show ? 0.0 : 1.0); }} className="text-slate-500 hover:text-slate-300">
+                          {layer.show ? <Eye className="w-3 h-3 text-orange-400" /> : <EyeOff className="w-3 h-3" />}
+                        </button>
+                        <span className="text-slate-600 w-6 text-right">{Math.round(layer.val * 100)}%</span>
+                      </div>
+                    </div>
+                    <input type="range" min="0" max="1" step="0.05" value={layer.val}
+                      onChange={e => { const v = parseFloat(e.target.value); layer.set(v); layer.toggle(v > 0); }}
+                      className="accent-orange-500 h-1 bg-slate-950 rounded cursor-pointer" />
                   </div>
+                ))}
+                {/* Fascial depth filter */}
+                <div className="border-t border-slate-900 pt-2 mt-1">
+                  <div className="text-[8px] font-bold uppercase text-slate-500 mb-1">Fascial Depth</div>
+                  {(['all', 'superficial', 'intermediate', 'deep'] as const).map(layer => (
+                    <button key={layer}
+                      onClick={() => setMuscleLayerFilter(layer)}
+                      className={`w-full text-left py-0.5 px-1.5 rounded text-[8px] mb-0.5 transition-all ${
+                        muscleLayerFilter === layer ? 'bg-orange-500/20 text-orange-300' : 'text-slate-500 hover:text-slate-300'
+                      }`}>
+                      {layer === 'all' ? '● All Layers' : layer === 'superficial' ? '◎ Superficial' : layer === 'intermediate' ? '◉ Intermediate' : '⬤ Deep'}
+                    </button>
+                  ))}
                 </div>
-                <input
-                  type="range" min="0" max="1" step="0.05"
-                  value={layer.val}
-                  onChange={e => {
-                    const v = parseFloat(e.target.value);
-                    layer.set(v);
-                    layer.toggle(v > 0);
-                  }}
-                  className="accent-medical-500 h-1 bg-slate-950 rounded cursor-pointer"
-                />
-              </div>
-            ))}
+              </>
+            ) : (
+              /* BONE LAYER CONTROLS */
+              ([
+                { label: '📸 Reference Image', val: refImageOpacity, set: setRefImageOpacity, show: showRefImage, toggle: setShowRefImage },
+                { label: '🫥 Skin Envelope', val: opacitySkin, set: setOpacitySkin, show: showSkin, toggle: setShowSkin },
+                { label: '🦴 Skeleton Frame', val: opacitySkeleton, set: setOpacitySkeleton, show: showSkeleton, toggle: setShowSkeleton },
+                { label: '🎯 Hit Zones', val: showHitZones ? 1 : 0, set: (v: number) => setShowHitZones(v > 0), show: showHitZones, toggle: setShowHitZones }
+              ] as { label: string; val: number; set: (v: number) => void; show: boolean; toggle: (v: boolean) => void }[]).map(layer => (
+                <div key={layer.label} className="flex flex-col gap-0.5">
+                  <div className="flex justify-between font-semibold items-center">
+                    <span>{layer.label}</span>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => { layer.toggle(!layer.show); layer.set(layer.show ? 0.0 : 1.0); }} className="text-slate-500 hover:text-slate-300">
+                        {layer.show ? <Eye className="w-3 h-3 text-medical-400" /> : <EyeOff className="w-3 h-3" />}
+                      </button>
+                      <span className="text-slate-600 w-6 text-right">{Math.round(layer.val * 100)}%</span>
+                    </div>
+                  </div>
+                  <input type="range" min="0" max="1" step="0.05" value={layer.val}
+                    onChange={e => { const v = parseFloat(e.target.value); layer.set(v); layer.toggle(v > 0); }}
+                    className="accent-medical-500 h-1 bg-slate-950 rounded cursor-pointer" />
+                </div>
+              ))
+            )}
           </div>
 
           {/* TOP RIGHT: MINIMAP */}
@@ -696,29 +1048,44 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
               maxHeight: '90%',
             }}
           >
-            {/* LAYER 1: INNERBODY REFERENCE PNG */}
+            {/* LAYER 1: INNERBODY REFERENCE PNGs (Skeletal or Muscular) */}
             {showRefImage && (
-              <img
-                src={skeletalPng}
-                alt="Human Skeletal System - Anterior View"
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'contain',
-                  opacity: refImageOpacity,
-                  // Invert turns white→black, then screen blend makes black
-                  // transparent on any dark background. Bones emerge as glowing
-                  // teal/amber highlights matching the medical UI theme.
-                  filter: `invert(1) brightness(${activeSystemId === 'skeletal' ? 1.15 : 1.0}) contrast(1.1) saturate(1.3)`,
-                  mixBlendMode: 'screen',
-                  transition: 'opacity 0.4s ease, filter 0.4s ease',
-                  userSelect: 'none',
-                  pointerEvents: 'none'
-                }}
-                draggable={false}
-              />
+              <>
+                {/* Skeletal PNG — always show in skeletal mode or full-body */}
+                {activeSystemId !== 'muscular' && (
+                  <img
+                    src={skeletalPng}
+                    alt="Human Skeletal System - Anterior View"
+                    style={{
+                      position: 'absolute', inset: 0, width: '100%', height: '100%',
+                      objectFit: 'contain',
+                      opacity: refImageOpacity,
+                      filter: `invert(1) brightness(${activeSystemId === 'skeletal' ? 1.15 : 0.7}) contrast(1.1) saturate(1.3)`,
+                      mixBlendMode: 'screen',
+                      transition: 'opacity 0.4s ease, filter 0.4s ease',
+                      userSelect: 'none', pointerEvents: 'none'
+                    }}
+                    draggable={false}
+                  />
+                )}
+                {/* Muscular PNG — show in muscular mode or full-body */}
+                {activeSystemId !== 'skeletal' && (
+                  <img
+                    src={muscularPng}
+                    alt="Human Muscular System - Anterior View"
+                    style={{
+                      position: 'absolute', inset: 0, width: '100%', height: '100%',
+                      objectFit: 'contain',
+                      opacity: activeSystemId === 'muscular' ? refImageOpacity : refImageOpacity * 0.65,
+                      filter: `invert(1) brightness(${activeSystemId === 'muscular' ? 1.2 : 0.85}) contrast(1.15) saturate(1.4) hue-rotate(${activeSystemId === 'muscular' ? 15 : 0}deg)`,
+                      mixBlendMode: 'screen',
+                      transition: 'opacity 0.4s ease, filter 0.4s ease',
+                      userSelect: 'none', pointerEvents: 'none'
+                    }}
+                    draggable={false}
+                  />
+                )}
+              </>
             )}
 
             {/* LAYER 2: SVG INTERACTIVE HIT-ZONES */}
@@ -889,12 +1256,110 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
                   style={{ cursor: 'pointer' }}
                 />
               </g>
+
+              {/* LAYER 2.5: MUSCLE HIT-ZONES */}
+              {showMuscleHitZones && (
+                <g id="muscle-hit-zones">
+                  {MUSCLE_HIT_ZONES.map((zone, i) => {
+                    if (muscleLayerFilter !== 'all' && zone.layer !== muscleLayerFilter) return null;
+                    const m = muscleDatabaseMap.get(zone.id);
+                    const isSelected = selectedMuscleId === zone.id;
+                    const isHidden = hiddenMuscles.has(zone.id);
+                    if (isHidden) return null;
+
+                    const isSynergist = highlightSynergists && selectedMuscleId
+                      ? MuscleInteraction.getSynergists(selectedMuscleId).includes(zone.id)
+                      : false;
+                    const isAntagonist = highlightAntagonists && selectedMuscleId
+                      ? MuscleInteraction.getAntagonists(selectedMuscleId).includes(zone.id)
+                      : false;
+                    const isIsolated = isolatedMuscleId === zone.id;
+                    const dimmed = isolatedMuscleId && !isIsolated;
+
+                    const fillColor = isSelected
+                      ? zone.color
+                      : isSynergist ? '#34d399'
+                      : isAntagonist ? '#f87171'
+                      : zone.color;
+                    const fillOpacity = dimmed ? 0.04 : isSelected ? 0.45 : isSynergist || isAntagonist ? 0.35 : 0.0;
+                    const strokeOpacity = isSelected ? 1 : isSynergist || isAntagonist ? 0.8 : 0.0;
+
+                    const uniqueKey = `muscle-hz-${zone.id}-${i}`;
+                    const commonProps = {
+                      fill: fillColor,
+                      fillOpacity,
+                      stroke: fillColor,
+                      strokeWidth: isSelected ? 2 : 1.2,
+                      strokeOpacity,
+                      filter: isSelected ? 'url(#hz-glow-selected)' : undefined,
+                      style: {
+                        cursor: 'pointer',
+                        transition: 'fill-opacity 0.15s, stroke-opacity 0.15s',
+                        display: activeSystemId !== 'muscular' && !isSynergist && !isAntagonist && !isSelected ? 'none' : undefined
+                      },
+                      className: 'muscle-hit-zone',
+                      onClick: (e: React.MouseEvent) => {
+                        e.stopPropagation();
+                        setSelectedMuscleId(zone.id);
+                        onSelectOrgan(null);
+                      },
+                      onMouseEnter: (e: React.MouseEvent) => {
+                        const rect = (e.currentTarget as SVGElement).closest('div')?.getBoundingClientRect();
+                        if (rect) {
+                          setHoveredOrgan({
+                            id: zone.id,
+                            name: zone.label,
+                            x: e.clientX - rect.left + 12,
+                            y: e.clientY - rect.top - 10
+                          });
+                        }
+                      },
+                      onMouseMove: (e: React.MouseEvent) => {
+                        const rect = (e.currentTarget as SVGElement).closest('div')?.getBoundingClientRect();
+                        if (rect) setHoveredOrgan(prev => prev ? { ...prev, x: e.clientX - rect.left + 12, y: e.clientY - rect.top - 10 } : null);
+                      },
+                      onMouseLeave: () => setHoveredOrgan(null),
+                    };
+
+                    if (zone.type === 'ellipse') {
+                      return <ellipse key={uniqueKey} cx={zone.cx} cy={zone.cy} rx={zone.rx} ry={zone.ry} {...commonProps} />;
+                    } else if (zone.type === 'rect') {
+                      return <rect key={uniqueKey} x={zone.x} y={zone.y} width={zone.w} height={zone.h} rx={3} {...commonProps} />;
+                    } else {
+                      return <polygon key={uniqueKey} points={zone.points} {...commonProps} />;
+                    }
+                  })}
+                </g>
+              )}
             </svg>
           </div>
 
           {/* FLOATING HOVER CARD TOOLTIP */}
           {hoveredOrgan && (
             (() => {
+              // Check if this is a muscle
+              const hovMuscle = muscleDatabaseMap.get(hoveredOrgan.id);
+              if (hovMuscle && activeSystemId === 'muscular') {
+                const layerMeta = FASCIAL_LAYER_META[hovMuscle.fascialLayer];
+                return (
+                  <div
+                    style={{ left: hoveredOrgan.x, top: hoveredOrgan.y, pointerEvents: 'none' }}
+                    className="absolute z-30 w-52 bg-slate-950/95 border border-orange-900/60 rounded-xl p-3 shadow-2xl text-[10px] text-slate-300 font-sans backdrop-blur-md"
+                  >
+                    <div className="font-bold text-orange-300 border-b border-slate-900 pb-1 mb-1.5 flex justify-between items-start">
+                      <span>{hoveredOrgan.name}</span>
+                      <span className="text-[7px] px-1 py-0.5 rounded" style={{ color: layerMeta.color, background: layerMeta.color + '20' }}>{hovMuscle.fascialLayer}</span>
+                    </div>
+                    <div className="text-[8px] text-slate-500 italic mb-1">{hovMuscle.latinName}</div>
+                    <div className="flex flex-col gap-1 text-[9px]">
+                      <div><span className="text-slate-500">Action: </span><span className="text-cyan-300">{hovMuscle.primaryAction}</span></div>
+                      <div><span className="text-slate-500">Nerve: </span><span className="text-violet-300">{hovMuscle.innervation.split('(')[0].trim()}</span></div>
+                    </div>
+                  </div>
+                );
+              }
+
+              // Existing bone hover
               const bone = bonesCatalog.find(b => b.id === hoveredOrgan.id);
               if (bone) {
                 return (

@@ -2,6 +2,7 @@ import { Registry, Entity } from './Registry';
 import { TransformComponent, TRS } from '../transforms/TRS';
 import { RenderComponent, BoneComponent, Landmark } from '../renderer/RenderPipeline';
 import { majorJointsList, JointComponent } from '../../atlas/skeleton/joints/joints';
+import { muscleDatabase } from '../../atlas/muscles/data/muscleData';
 
 export class SceneInitializer {
   public static initialize(registry: Registry): void {
@@ -1842,6 +1843,22 @@ export class SceneInitializer {
     for (const joint of majorJointsList) {
       const jEntity = registry.createEntity(joint.id);
       registry.addComponent(jEntity, joint);
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // PHASE 2: MUSCULAR SYSTEM REGISTRATION
+    // Every muscle entity added to the ECS registry.
+    // TransformComponent is set relative to the muscle's primary origin bone.
+    // ══════════════════════════════════════════════════════════
+    for (const muscle of muscleDatabase) {
+      // Use the first origin bone as the scene-graph parent
+      const parentBone = muscle.originBones[0] || 'body';
+      const mEntity = registry.createEntity(muscle.id);
+      registry.addComponent(mEntity, new TransformComponent(
+        new TRS({ x: 0, y: 0, rotation: 0, scale: 1 }),
+        parentBone
+      ));
+      registry.addComponent(mEntity, muscle);
     }
   }
 }
