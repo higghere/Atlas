@@ -3,7 +3,7 @@ import skeletalPng from '../../assets/skeletal_system.png';
 import muscularPng from '../../assets/muscular_system.png';
 import cardiovascularPng from '../../assets/cardiovascular_system.png';
 import { OrganNode } from '../../types/physiology';
-import { Eye, EyeOff, Search, Network, Heart, Activity } from 'lucide-react';
+import { Eye, EyeOff, Search, Network } from 'lucide-react';
 import { bonesCatalog, BoneMetadata } from '../../data/bones';
 import { Registry } from '../../engine/ecs/Registry';
 import { SceneGraph } from '../../engine/scene/SceneNode';
@@ -24,12 +24,10 @@ import {
   ALL_VASCULAR_NODES,
   VASCULAR_NODES_MAP,
   CARDIOVASCULAR_SUBTREES,
-  validatePositionalError,
   getAnatomicalHierarchyPath,
   getCirculatoryFlowLoop,
   filterVesselsByLOD,
-  searchVascularNodes,
-  ORGAN_VASCULAR_CONNECTIONS
+  searchVascularNodes
 } from '../../atlas/cardiovascular/data/vascularData';
 import { CardiovascularNode, LODLevel } from '../../atlas/cardiovascular/types';
 
@@ -110,7 +108,7 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
     { id: 'all',            icon: '🧍', name: 'Full Body' },
     { id: 'skeletal',       icon: '🦴', name: 'Skeleton' },
     { id: 'muscular',       icon: '💪', name: 'Muscular' },
-    { id: 'cardiovascular', icon: '🫀', name: 'Cardio' },
+    { id: 'cardiovascular', icon: '🫀', name: 'Cardiovascular' },
   ];
 
   // Auto preset layer states on select tabs
@@ -119,45 +117,16 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
       setOpacitySkin(0.05); setOpacitySkeleton(0.95);
       setShowSkeleton(true); setShowSkin(true);
       setShowMuscleHitZones(false);
-      setShowCardiovascularVessels(false);
     } else if (activeSystemId === 'muscular') {
       setOpacitySkin(0.05); setOpacitySkeleton(0.1);
       setShowSkeleton(false); setShowSkin(true);
       setShowMuscleHitZones(true);
-      setShowCardiovascularVessels(false);
-    } else if (activeSystemId === 'cardiovascular') {
-      setOpacitySkin(0.05); setOpacitySkeleton(0.15);
-      setShowSkeleton(true); setShowSkin(true);
-      setShowMuscleHitZones(false);
-      setShowCardiovascularVessels(true);
     } else {
       setOpacitySkin(0.1); setOpacitySkeleton(0.35);
       setShowSkin(true); setShowSkeleton(true);
       setShowMuscleHitZones(true);
-      setShowCardiovascularVessels(true);
     }
   }, [activeSystemId]);
-
-  // Camera Focus Presets
-  const applyCameraPreset = (preset: 'heart' | 'brain' | 'upper_limb' | 'abdomen' | 'kidneys' | 'pelvis' | 'lower_limb') => {
-    switch (preset) {
-      case 'heart':
-        setZoom(2.2); setPan({ x: 0, y: -70 }); break;
-      case 'brain':
-        setZoom(2.4); setPan({ x: 0, y: 150 }); break;
-      case 'upper_limb':
-        setZoom(1.8); setPan({ x: 100, y: -20 }); break;
-      case 'abdomen':
-        setZoom(1.8); setPan({ x: 0, y: -120 }); break;
-      case 'kidneys':
-        setZoom(2.0); setPan({ x: 0, y: -140 }); break;
-      case 'pelvis':
-        setZoom(1.8); setPan({ x: 0, y: -180 }); break;
-      case 'lower_limb':
-        setZoom(1.5); setPan({ x: 0, y: -240 }); break;
-    }
-  };
-
 
   // Zoom & Pan
   const [zoom, setZoom] = useState(1.0);
@@ -354,23 +323,50 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
     { id: 'foot', name: '足 Ankle & Foot' }
   ];
 
-  const organTreeData = [
-    ...skeletalGroups.map(group => ({
-      id: `skeletal-${group.id}`,
-      name: group.name,
-      children: bonesCatalog
-        .filter(bone => bone.subCategory === group.id)
-        .map(bone => ({
-          id: bone.id,
-          name: bone.name
-        }))
-    }))
-  ];
+  const organTreeData = useMemo(() => {
+    if (activeSystemId === 'muscular') {
+      const groups = Object.entries(MUSCLE_GROUP_META);
+      return groups.map(([gKey, meta]) => ({
+        id: `muscular-${gKey}`,
+        name: `${meta.emoji} ${meta.label}`,
+        children: muscleDatabase
+          .filter(m => m.muscleGroup === gKey)
+          .map(m => ({
+            id: m.id,
+            name: m.displayName
+          }))
+      })).filter(g => g.children.length > 0);
+    }
+
+    return [
+      ...skeletalGroups.map(group => ({
+        id: `skeletal-${group.id}`,
+        name: group.name,
+        children: bonesCatalog
+          .filter(bone => bone.subCategory === group.id)
+          .map(bone => ({
+            id: bone.id,
+            name: bone.name
+          }))
+      }))
+    ];
+  }, [activeSystemId]);
 
   const filteredTree = useMemo(() => {
     if (!treeSearch.trim()) {
       return organTreeData;
     }
+    if (activeSystemId === 'muscular') {
+      const matched = MuscleSearchIndex.query(treeSearch);
+      const matchedIds = new Set(matched.map(m => m.id));
+      return organTreeData.map(system => {
+        const matchingChildren = system.children.filter(child =>
+          matchedIds.has(child.id) || child.name.toLowerCase().includes(treeSearch.toLowerCase())
+        );
+        return { ...system, children: matchingChildren };
+      }).filter(system => system.children.length > 0);
+    }
+
     const matchedBones = SkeletalSearchIndex.query(registry, treeSearch);
     const matchedIds = new Set(matchedBones.map(b => b.id));
 
@@ -380,27 +376,7 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
       );
       return { ...system, children: matchingChildren };
     }).filter(system => system.children.length > 0);
-  }, [organTreeData, treeSearch, registry]);
-
-  // Muscle tree grouped by region
-  const muscleTreeData = useMemo(() => {
-    const groups = Object.entries(MUSCLE_GROUP_META).map(([groupId, meta]) => ({
-      id: `muscle-${groupId}`,
-      name: `${meta.emoji} ${meta.label}`,
-      children: muscleDatabase
-        .filter(m => m.muscleGroup === groupId)
-        .map(m => ({ id: m.id, name: m.displayName }))
-    })).filter(g => g.children.length > 0);
-    return groups;
-  }, []);
-
-  const filteredMuscleTree = useMemo(() => {
-    if (!muscleSearch.trim()) return muscleTreeData;
-    const matchedIds = MuscleSearchIndex.queryIds(muscleSearch);
-    return muscleTreeData
-      .map(g => ({ ...g, children: g.children.filter(c => matchedIds.has(c.id) || c.name.toLowerCase().includes(muscleSearch.toLowerCase())) }))
-      .filter(g => g.children.length > 0);
-  }, [muscleTreeData, muscleSearch]);
+  }, [organTreeData, treeSearch, registry, activeSystemId]);
 
   const handleOrganHover = (e: React.MouseEvent, id: string) => {
     const bounds = viewportRef.current?.getBoundingClientRect();
@@ -433,554 +409,301 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
           />
           <Search className="w-4 h-4 text-slate-500 absolute left-2.5" />
         </div>
-        {/* System mode tabs: Skeletal vs Muscular */}
-        <div className="flex gap-1.5 mb-2">
-          {(['skeletal', 'muscular'] as const).map(mode => (
-            <button
-              key={mode}
-              onClick={() => onSelectSystem(mode)}
-              className={`flex-1 py-1 px-2 rounded text-[9px] font-bold uppercase tracking-wider transition-all ${
-                activeSystemId === mode
-                  ? mode === 'muscular'
-                    ? 'bg-orange-500/20 text-orange-300 border border-orange-500/50'
-                    : 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/50'
-                  : 'bg-slate-900 text-slate-500 border border-slate-800 hover:text-slate-300'
-              }`}
-            >
-              {mode === 'skeletal' ? '🦴 Skeleton' : '💪 Muscles'}
-            </button>
+        <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-2 min-h-0">
+          {filteredTree.map(sys => (
+            <div key={sys.id} className="text-xs">
+              <div className="font-bold text-slate-400 bg-slate-950/20 px-2 py-1 rounded">
+                {sys.name}
+              </div>
+              <div className="pl-3 mt-1 flex flex-col gap-1 border-l border-slate-900 ml-2">
+                {sys.children.map(child => (
+                  <button
+                    key={child.id}
+                    onClick={() => onSelectOrgan(selectedOrganId === child.id ? null : child.id)}
+                    className={`w-full text-left py-1 px-2 rounded hover:bg-slate-900/30 transition-all ${
+                      selectedOrganId === child.id
+                        ? 'text-medical-400 bg-medical-500/10 font-semibold'
+                        : 'text-slate-500 hover:text-slate-300'
+                    }`}
+                  >
+                    ├─ {child.name}
+                  </button>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
 
-        {activeSystemId !== 'muscular' ? (
-          /* ── SKELETAL TREE ── */
-          <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-2 min-h-0">
-            {filteredTree.map(sys => (
-              <div key={sys.id} className="text-xs">
-                <div className="font-bold text-slate-400 bg-slate-950/20 px-2 py-1 rounded">
-                  {sys.name}
-                </div>
-                <div className="pl-3 mt-1 flex flex-col gap-1 border-l border-slate-900 ml-2">
-                  {sys.children.map(child => (
-                    <button
-                      key={child.id}
-                      onClick={() => onSelectOrgan(selectedOrganId === child.id ? null : child.id)}
-                      className={`w-full text-left py-1 px-2 rounded hover:bg-slate-900/30 transition-all ${
-                        selectedOrganId === child.id
-                          ? 'text-medical-400 bg-medical-500/10 font-semibold'
-                          : 'text-slate-500 hover:text-slate-300'
-                      }`}
-                    >
-                      ├─ {child.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : activeSystemId === 'cardiovascular' ? (
-          /* ── CARDIOVASCULAR TREE ── */
-          <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-2 min-h-0">
-            {/* Camera Presets Bar */}
-            <div className="text-[8px] font-bold uppercase text-slate-400 mb-0.5 flex items-center justify-between">
-              <span>Focus Presets</span>
-            </div>
-            <div className="flex flex-wrap gap-1 mb-1.5">
-              {[
-                { id: 'heart', label: '❤️ Heart' },
-                { id: 'brain', label: '🧠 Brain' },
-                { id: 'upper_limb', label: '💪 Arm' },
-                { id: 'abdomen', label: '🫁 Abdomen' },
-                { id: 'kidneys', label: '🩺 Kidneys' },
-                { id: 'pelvis', label: '🦴 Pelvis' },
-                { id: 'lower_limb', label: '🦵 Leg' },
-              ].map(p => (
-                <button
-                  key={p.id}
-                  onClick={() => applyCameraPreset(p.id as any)}
-                  className="px-1.5 py-0.5 rounded text-[8px] font-bold bg-slate-900 hover:bg-slate-800 text-rose-300 border border-slate-800 hover:border-rose-800 transition-all"
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
-
-            {/* LOD Filter slider */}
-            <div className="bg-slate-950/60 p-2 rounded border border-slate-900 text-[8px] flex flex-col gap-1">
-              <div className="flex justify-between font-bold text-slate-400">
-                <span>Level of Detail (LOD)</span>
-                <span className="text-rose-400">LOD {cardioLODFilter}</span>
-              </div>
-              <input
-                type="range" min="0" max="4" step="1"
-                value={cardioLODFilter}
-                onChange={e => setCardioLODFilter(parseInt(e.target.value) as LODLevel)}
-                className="accent-rose-500 h-1 bg-slate-900 rounded cursor-pointer"
-              />
-              <div className="flex justify-between text-[7px] text-slate-500 font-mono">
-                <span>0: Trunks</span>
-                <span>1: Major</span>
-                <span>2: Reg</span>
-                <span>3: Mid</span>
-                <span>4: Micro</span>
-              </div>
-            </div>
-
-            {/* Vascular search input */}
-            <div className="relative my-0.5">
-              <Search className="w-3 h-3 absolute left-2 top-2 text-slate-500" />
-              <input
-                type="text"
-                placeholder="Search vessels (e.g. Femoral, Carotid)..."
-                value={vesselSearchQuery}
-                onChange={e => setVesselSearchQuery(e.target.value)}
-                className="w-full pl-7 pr-2 py-1 text-[9px] bg-slate-950 border border-slate-800 rounded text-slate-300 placeholder-slate-600 focus:outline-none focus:border-rose-500"
-              />
-            </div>
-
-            {/* Vessel list grouped by 10 Explorer Subtrees */}
-            {CARDIOVASCULAR_SUBTREES.map(subtree => {
-              const subVessels = ALL_VASCULAR_NODES.filter(v => subtree.filter(v) && v.lod <= cardioLODFilter && (
-                !vesselSearchQuery.trim() ||
-                v.name.toLowerCase().includes(vesselSearchQuery.toLowerCase()) ||
-                v.latinName.toLowerCase().includes(vesselSearchQuery.toLowerCase())
-              ));
-              if (subVessels.length === 0) return null;
-              return (
-                <div key={subtree.id} className="text-xs">
-                  <div className="font-bold text-rose-400/90 bg-rose-950/30 px-2 py-0.5 rounded border-l-2 border-rose-500 text-[9px] uppercase tracking-wider flex justify-between">
-                    <span>{subtree.name}</span>
-                    <span className="text-[7.5px] text-slate-500">({subVessels.length})</span>
-                  </div>
-                  <div className="pl-2 mt-1 flex flex-col gap-0.5 border-l border-slate-900 ml-1.5">
-                    {subVessels.map(vessel => (
-                      <button
-                        key={vessel.id}
-                        onClick={() => {
-                          setSelectedVesselId(selectedVesselId === vessel.id ? null : vessel.id);
-                          setSelectedMuscleId(null);
-                          onSelectOrgan(null);
-                        }}
-                        className={`w-full text-left py-0.5 px-1.5 rounded hover:bg-rose-950/30 transition-all text-[8.5px] flex justify-between items-center ${
-                          selectedVesselId === vessel.id
-                            ? 'text-rose-300 bg-rose-500/20 font-bold border-l-2 border-rose-400'
-                            : 'text-slate-400 hover:text-slate-200'
-                        }`}
-                      >
-                        <span className="truncate">├─ {vessel.name}</span>
-                        <span className={`text-[7px] px-1 rounded font-mono ${vessel.type === 'artery' ? 'text-rose-400 bg-rose-950/60' : vessel.type === 'vein' ? 'text-blue-400 bg-blue-950/60' : 'text-amber-400 bg-amber-950/60'}`}>
-                          {vessel.type === 'artery' ? 'ART' : vessel.type === 'vein' ? 'VEIN' : 'HT'}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          /* ── MUSCULAR TREE ── */
-          <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-2 min-h-0">
-            {/* Fascial layer filter buttons */}
-            <div className="flex flex-wrap gap-1 mb-1">
-              {(['all', 'superficial', 'intermediate', 'deep'] as const).map(layer => (
-                <button
-                  key={layer}
-                  onClick={() => setMuscleLayerFilter(layer)}
-                  className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase transition-all ${
-                    muscleLayerFilter === layer
-                      ? 'bg-orange-500/20 text-orange-300 border border-orange-500/40'
-                      : 'bg-slate-900 text-slate-500 border border-slate-800'
-                  }`}
-                >
-                  {layer === 'all' ? 'All' : layer.slice(0,6)}
-                </button>
-              ))}
-            </div>
-            {filteredMuscleTree.map(grp => (
-              <div key={grp.id} className="text-xs">
-                <div className="font-bold text-orange-400/80 bg-orange-900/10 px-2 py-1 rounded border-l-2 border-orange-500/40">
-                  {grp.name}
-                </div>
-                <div className="pl-3 mt-1 flex flex-col gap-1 border-l border-slate-900 ml-2">
-                  {grp.children
-                    .filter(c => {
-                      if (muscleLayerFilter === 'all') return true;
-                      const m = muscleDatabaseMap.get(c.id);
-                      return m?.fascialLayer === muscleLayerFilter;
-                    })
-                    .map(child => {
-                      const m = muscleDatabaseMap.get(child.id);
-                      return (
-                        <button
-                          key={child.id}
-                          onClick={() => {
-                            setSelectedMuscleId(selectedMuscleId === child.id ? null : child.id);
-                            onSelectOrgan(null);
-                          }}
-                          className={`w-full text-left py-1 px-2 rounded hover:bg-orange-900/20 transition-all text-[9px] ${
-                            selectedMuscleId === child.id
-                              ? 'text-orange-300 bg-orange-500/10 font-semibold border-l-2 border-orange-400'
-                              : 'text-slate-500 hover:text-slate-300'
-                          }`}
-                        >
-                          <span className="opacity-50 mr-0.5">├─</span> {child.name}
-                          {m && <span className={`ml-1 text-[7px] opacity-50 ${
-                            m.fascialLayer === 'superficial' ? 'text-orange-400' :
-                            m.fascialLayer === 'intermediate' ? 'text-pink-400' :
-                            m.fascialLayer === 'deep' ? 'text-purple-400' : 'text-cyan-400'
-                          }`}>{m.fascialLayer.slice(0,4)}</span>}
-                        </button>
-                      );
-                    })}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* ── INSPECTOR PANEL ── */}
+        {/* Selected Anatomical Element Inspector */}
         <div className="border-t border-slate-900 mt-3 pt-3 flex flex-col gap-2 shrink-0">
           <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
             Anatomical Inspector
           </h4>
+          {selectedOrganId ? (
+            (() => {
+              // ── Muscle Inspector (Phase 2) ──────────────────────────
+              const muscleComp = registry.getComponent<MuscleComponent>(selectedOrganId, 'MuscleComponent');
+              if (muscleComp) {
+                const layerMeta = FASCIAL_LAYER_META[muscleComp.fascialLayer];
+                const groupMeta = MUSCLE_GROUP_META[muscleComp.muscleGroup];
+                const isIsolated = isolatedMuscleId === selectedOrganId;
+                const isHidden = hiddenMuscles.has(selectedOrganId);
 
-          {/* CARDIOVASCULAR INSPECTOR */}
-          {selectedVesselId ? (() => {
-            const vessel = VASCULAR_NODES_MAP[selectedVesselId];
-            if (!vessel) return <div className="text-slate-500 text-xs italic">Unknown vessel.</div>;
-            const hierarchyPath = getAnatomicalHierarchyPath(selectedVesselId);
-            const flowLoop = getCirculatoryFlowLoop(selectedVesselId);
-
-            return (
-              <div className="text-[10px] text-slate-300 flex flex-col gap-2 bg-slate-950/60 p-2.5 rounded border border-rose-900/40 max-h-[500px] overflow-y-auto select-text">
-                {/* Header */}
-                <div className="flex justify-between items-start">
-                  <div>
-                    <div className="font-bold text-rose-400 text-xs leading-tight flex items-center gap-1">
-                      <Heart className="w-3 h-3 text-rose-500 fill-rose-500/30" />
-                      {vessel.name}
+                return (
+                  <div className="text-[10px] text-slate-300 flex flex-col gap-2.5 bg-slate-950/40 p-2.5 rounded border border-slate-900 max-h-[460px] overflow-y-auto select-text">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="font-bold text-amber-400 text-xs leading-tight">{muscleComp.displayName}</div>
+                        <div className="text-[8px] text-slate-500 uppercase font-semibold tracking-wider">
+                          {muscleComp.latinName}
+                        </div>
+                      </div>
+                      <div className="flex gap-1">
+                        <span className="text-[8px] bg-slate-900 border border-slate-800 text-amber-400 px-1 rounded">
+                          {groupMeta?.emoji} {groupMeta?.label}
+                        </span>
+                        <span className="text-[8px] bg-slate-900 border border-slate-800 text-slate-400 px-1 rounded">
+                          {layerMeta?.label}
+                        </span>
+                      </div>
                     </div>
-                    <div className="text-[8px] text-slate-500 italic">{vessel.latinName}</div>
-                  </div>
-                  <div className="flex flex-col gap-0.5 items-end">
-                    <span className={`text-[7px] px-1.5 py-0.5 rounded border font-bold uppercase ${
-                      vessel.type === 'artery' ? 'bg-rose-950 text-rose-400 border-rose-800' :
-                      vessel.type === 'vein' ? 'bg-blue-950 text-blue-400 border-blue-800' : 'bg-red-950 text-red-300 border-red-800'
-                    }`}>
-                      {vessel.type.replace('_', ' ')}
-                    </span>
-                    <span className="text-[7px] text-slate-400 bg-slate-900 border border-slate-800 px-1 rounded">
-                      Caliber: {vessel.width}mm | LOD {vessel.lod}
-                    </span>
-                  </div>
-                </div>
 
-                {/* Trace Mode buttons */}
-                <div className="grid grid-cols-3 gap-1 border-y border-slate-900 py-1.5">
-                  <button
-                    onClick={() => setHighlightTraceMode('hierarchy')}
-                    className={`py-1 px-1 rounded text-[7px] font-bold uppercase transition-all ${
-                      highlightTraceMode === 'hierarchy' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/50' : 'bg-slate-900 text-slate-400 border border-slate-800'
-                    }`}
-                  >Tree Path ({hierarchyPath.length})</button>
-                  <button
-                    onClick={() => setHighlightTraceMode('flow')}
-                    className={`py-1 px-1 rounded text-[7px] font-bold uppercase transition-all ${
-                      highlightTraceMode === 'flow' ? 'bg-sky-500/20 text-sky-300 border border-sky-500/50' : 'bg-slate-900 text-slate-400 border border-slate-800'
-                    }`}
-                  >Flow Loop ({flowLoop.length})</button>
-                  <button
-                    onClick={() => setHighlightTraceMode('both')}
-                    className={`py-1 px-1 rounded text-[7px] font-bold uppercase transition-all ${
-                      highlightTraceMode === 'both' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/50' : 'bg-slate-900 text-slate-400 border border-slate-800'
-                    }`}
-                  >Both Trace</button>
-                </div>
-
-                {/* Landmarks */}
-                <div className="grid grid-cols-2 gap-1 text-[8px] border-b border-slate-900 pb-1.5">
-                  <div><span className="text-slate-500 font-bold uppercase block">Origin Landmark:</span><span className="text-slate-300">{vessel.startLandmark}</span></div>
-                  <div><span className="text-slate-500 font-bold uppercase block">Terminus Landmark:</span><span className="text-slate-300">{vessel.endLandmark}</span></div>
-                </div>
-
-                {/* Anatomical Hierarchy (renderParent / renderChildren) */}
-                <div className="border-b border-slate-900 pb-1.5">
-                  <span className="text-slate-500 font-bold uppercase text-[8px] block mb-1">Anatomical Hierarchy Tree:</span>
-                  <div className="flex flex-col gap-1 text-[8px]">
-                    <div>
-                      <span className="text-slate-500">Render Parent: </span>
-                      {vessel.renderParent ? (
-                        <button onClick={() => setSelectedVesselId(vessel.renderParent)} className="text-amber-400 font-semibold hover:underline">
-                          {VASCULAR_NODES_MAP[vessel.renderParent]?.name || vessel.renderParent}
-                        </button>
-                      ) : <span className="text-slate-600">None (Root Origin)</span>}
+                    {/* Interactive Action Controls */}
+                    <div className="grid grid-cols-3 gap-1.5 border-y border-slate-900 py-1.5">
+                      <button
+                        onClick={() => setIsolatedMuscleId(isIsolated ? null : selectedOrganId)}
+                        className={`py-1 px-1.5 rounded text-[8px] font-bold uppercase transition-all ${
+                          isIsolated ? 'bg-amber-500/20 text-amber-300 border border-amber-500/50' : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-850'
+                        }`}
+                      >
+                        {isIsolated ? 'Exit Isolate' : 'Isolate'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          const next = new Set(hiddenMuscles);
+                          if (isHidden) next.delete(selectedOrganId);
+                          else next.add(selectedOrganId);
+                          setHiddenMuscles(next);
+                        }}
+                        className="py-1 px-1.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-850 text-[8px] font-bold uppercase"
+                      >
+                        {isHidden ? 'Show' : 'Hide'}
+                      </button>
+                      <button
+                        onClick={() => setHighlightSynergists(!highlightSynergists)}
+                        className={`py-1 px-1.5 rounded text-[8px] font-bold uppercase transition-all ${
+                          highlightSynergists ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/50' : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-850'
+                        }`}
+                      >
+                        Synergists
+                      </button>
                     </div>
+
+                    {/* Primary Action */}
                     <div>
-                      <span className="text-slate-500">Render Branches ({vessel.renderChildren.length}): </span>
-                      <div className="flex flex-wrap gap-1 mt-0.5">
-                        {vessel.renderChildren.map(cId => (
-                          <button key={cId} onClick={() => setSelectedVesselId(cId)} className="text-[7px] px-1 py-0.5 rounded bg-slate-900 text-slate-300 border border-slate-800 hover:border-slate-700">
-                            {VASCULAR_NODES_MAP[cId]?.name || cId}
-                          </button>
-                        ))}
+                      <span className="text-amber-500 font-semibold uppercase text-[8px] block">Primary Action:</span>
+                      <span className="text-slate-200 font-medium block">{muscleComp.primaryAction}</span>
+                    </div>
+
+                    {/* Secondary Actions */}
+                    {muscleComp.secondaryActions.length > 0 && (
+                      <div>
+                        <span className="text-slate-500 font-semibold uppercase text-[8px] block">Secondary Actions:</span>
+                        <span className="text-slate-400 block">{muscleComp.secondaryActions.join(', ')}</span>
+                      </div>
+                    )}
+
+                    {/* Origin & Insertion (Skeletal Attachments) */}
+                    <div className="flex flex-col gap-1.5 border-t border-slate-900 pt-2">
+                      <div>
+                        <span className="text-cyan-400 font-semibold uppercase text-[8px] block">Origin (Bones: {muscleComp.originBones.join(', ')}):</span>
+                        <span className="text-slate-300 block text-[9px]">{muscleComp.originDescription}</span>
+                      </div>
+                      <div>
+                        <span className="text-emerald-400 font-semibold uppercase text-[8px] block">Insertion (Bones: {muscleComp.insertionBones.join(', ')}):</span>
+                        <span className="text-slate-300 block text-[9px]">{muscleComp.insertionDescription}</span>
+                      </div>
+                    </div>
+
+                    {/* Innervation & Blood Supply */}
+                    <div className="flex flex-col gap-1.5 border-t border-slate-900 pt-2">
+                      <div>
+                        <span className="text-slate-500 font-semibold uppercase text-[8px] block">Innervation:</span>
+                        <span className="text-slate-300 block">{muscleComp.innervation}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 font-semibold uppercase text-[8px] block">Vascular Supply:</span>
+                        <span className="text-slate-300 block">{muscleComp.bloodSupply}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 font-semibold uppercase text-[8px] block">Crosses Joints:</span>
+                        <span className="text-slate-400 block">{muscleComp.crossesJoints.join(', ') || 'None'}</span>
+                      </div>
+                    </div>
+
+                    {/* Synergists & Antagonists */}
+                    <div className="flex flex-col gap-1 border-t border-slate-900 pt-1.5">
+                      {muscleComp.synergists.length > 0 && (
+                        <div>
+                          <span className="text-slate-500 font-semibold uppercase text-[8px] block">Synergists:</span>
+                          <span className="text-slate-400 block">{muscleComp.synergists.join(', ')}</span>
+                        </div>
+                      )}
+                      {muscleComp.antagonists.length > 0 && (
+                        <div>
+                          <span className="text-slate-500 font-semibold uppercase text-[8px] block">Antagonists:</span>
+                          <span className="text-slate-400 block">{muscleComp.antagonists.join(', ')}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Clinical Notes & Injuries */}
+                    <div className="flex flex-col gap-1 border-t border-slate-900 pt-1.5">
+                      <div>
+                        <span className="text-slate-500 font-semibold uppercase text-[8px] block">Clinical Notes:</span>
+                        <span className="text-slate-400 block italic">{muscleComp.clinicalNotes}</span>
+                      </div>
+                      <div>
+                        <span className="text-rose-400 font-semibold uppercase text-[8px] block">Common Injuries:</span>
+                        <span className="text-slate-400 block">{muscleComp.commonInjuries}</span>
                       </div>
                     </div>
                   </div>
-                </div>
+                );
+              }
 
-                {/* Directed Circulatory Graph (flowIn / flowOut) */}
-                <div className="border-b border-slate-900 pb-1.5">
-                  <span className="text-slate-500 font-bold uppercase text-[8px] block mb-1">Directed Blood Flow Network:</span>
-                  <div className="grid grid-cols-2 gap-1 text-[8px]">
-                    <div>
-                      <span className="text-sky-400 font-bold block mb-0.5">↓ Upstream (flowIn):</span>
-                      {vessel.flowIn.map(fId => (
-                        <button key={fId} onClick={() => setSelectedVesselId(fId)} className="block text-left text-[7.5px] text-slate-300 hover:text-sky-300 truncate">
-                          • {VASCULAR_NODES_MAP[fId]?.name || fId}
-                        </button>
-                      ))}
-                    </div>
-                    <div>
-                      <span className="text-rose-400 font-bold block mb-0.5">↓ Downstream (flowOut):</span>
-                      {vessel.flowOut.map(fId => (
-                        <button key={fId} onClick={() => setSelectedVesselId(fId)} className="block text-left text-[7.5px] text-slate-300 hover:text-rose-300 truncate">
-                          • {VASCULAR_NODES_MAP[fId]?.name || fId}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Supplies / Drains */}
-                {vessel.supplies && vessel.supplies.length > 0 && (
-                  <div>
-                    <span className="text-slate-500 font-bold uppercase text-[8px] block">Supplies Tissues:</span>
-                    <span className="text-emerald-400 block leading-snug">{vessel.supplies.join(', ')}</span>
-                  </div>
-                )}
-                {vessel.drains && vessel.drains.length > 0 && (
-                  <div>
-                    <span className="text-slate-500 font-bold uppercase text-[8px] block">Drains Tissues:</span>
-                    <span className="text-sky-400 block leading-snug">{vessel.drains.join(', ')}</span>
-                  </div>
-                )}
-
-                {/* Connected Organs */}
-                {vessel.connectedOrgans.length > 0 && (
-                  <div>
-                    <span className="text-slate-500 font-bold uppercase text-[8px] block mb-0.5">Vascularized Organs:</span>
-                    <div className="flex flex-wrap gap-1">
-                      {vessel.connectedOrgans.map(orgId => (
-                        <span key={orgId} className="text-[7.5px] px-1.5 py-0.5 rounded bg-rose-950/60 text-rose-300 border border-rose-800/60">
-                          {orgId.toUpperCase()}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Clinical Importance */}
-                <div className="border-t border-slate-900 pt-1.5">
-                  <span className="text-slate-500 font-bold uppercase text-[8px] block">Clinical Significance:</span>
-                  <span className="text-slate-400 block italic leading-snug">{vessel.clinicalImportance}</span>
-                </div>
-              </div>
-            );
-          })() : null}
-
-          {/* MUSCLE INSPECTOR */}
-          {selectedMuscleId && activeSystemId === 'muscular' ? (() => {
-            const muscle = muscleDatabaseMap.get(selectedMuscleId);
-            if (!muscle) return <div className="text-slate-500 text-xs italic">Unknown muscle.</div>;
-            const isMuscleIsolated = isolatedMuscleId === selectedMuscleId;
-            const isMuscleHidden = hiddenMuscles.has(selectedMuscleId);
-            const synergistIds = MuscleInteraction.getSynergists(selectedMuscleId);
-            const antagonistIds = MuscleInteraction.getAntagonists(selectedMuscleId);
-            const layerMeta = FASCIAL_LAYER_META[muscle.fascialLayer];
-            const groupMeta = MUSCLE_GROUP_META[muscle.muscleGroup];
-            return (
-              <div className="text-[10px] text-slate-300 flex flex-col gap-2 bg-slate-950/40 p-2.5 rounded border border-orange-900/40 max-h-[500px] overflow-y-auto select-text">
-                {/* Header */}
-                <div className="flex justify-between items-start">
-                  <div>
-                    <div className="font-bold text-orange-300 text-xs leading-tight">{muscle.displayName}</div>
-                    <div className="text-[8px] text-slate-500 italic">{muscle.latinName}</div>
-                  </div>
-                  <div className="flex flex-col gap-0.5 items-end">
-                    <span className="text-[7px] px-1.5 py-0.5 rounded border" style={{ color: layerMeta.color, borderColor: layerMeta.color + '40', background: layerMeta.color + '15' }}>
-                      {layerMeta.label}
-                    </span>
-                    <span className="text-[7px] text-slate-500 bg-slate-900 border border-slate-800 px-1 rounded">
-                      {groupMeta.emoji} {groupMeta.label}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Action controls */}
-                <div className="grid grid-cols-3 gap-1 border-y border-slate-900 py-1.5">
-                  <button
-                    onClick={() => setIsolatedMuscleId(isMuscleIsolated ? null : selectedMuscleId)}
-                    className={`py-1 px-1 rounded text-[8px] font-bold uppercase transition-all ${
-                      isMuscleIsolated ? 'bg-orange-500/20 text-orange-300 border border-orange-500/50' : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800'
-                    }`}
-                  >{isMuscleIsolated ? 'Exit' : 'Isolate'}</button>
-                  <button
-                    onClick={() => {
-                      const next = new Set(hiddenMuscles);
-                      if (isMuscleHidden) next.delete(selectedMuscleId); else next.add(selectedMuscleId);
-                      setHiddenMuscles(next);
-                    }}
-                    className="py-1 px-1 rounded text-[8px] font-bold uppercase bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800"
-                  >{isMuscleHidden ? 'Show' : 'Hide'}</button>
-                  <button
-                    onClick={() => setHighlightSynergists(!highlightSynergists)}
-                    className={`py-1 px-1 rounded text-[8px] font-bold uppercase transition-all ${
-                      highlightSynergists ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/50' : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800'
-                    }`}
-                  >Syn</button>
-                </div>
-
-                {/* Origin */}
-                <div>
-                  <span className="text-slate-500 font-bold uppercase text-[8px] block">Origin:</span>
-                  <span className="text-emerald-400 block leading-snug">{muscle.originDescription}</span>
-                  <span className="text-[8px] text-slate-600">Bones: {muscle.originBones.map(b => b.replace('bone-','')).join(', ')}</span>
-                </div>
-
-                {/* Insertion */}
-                <div>
-                  <span className="text-slate-500 font-bold uppercase text-[8px] block">Insertion:</span>
-                  <span className="text-rose-400 block leading-snug">{muscle.insertionDescription}</span>
-                  <span className="text-[8px] text-slate-600">Bones: {muscle.insertionBones.map(b => b.replace('bone-','')).join(', ')}</span>
-                </div>
-
-                {/* Actions */}
-                <div className="border-t border-slate-900 pt-1.5">
-                  <span className="text-slate-500 font-bold uppercase text-[8px] block">Primary Action:</span>
-                  <span className="text-cyan-300 block leading-snug">{muscle.primaryAction}</span>
-                  {muscle.secondaryActions.length > 0 && (
-                    <div className="mt-1">
-                      <span className="text-slate-500 font-bold uppercase text-[8px] block">Also:</span>
-                      {muscle.secondaryActions.map((a, i) => <span key={i} className="text-slate-400 block text-[9px] leading-snug">• {a}</span>)}
-                    </div>
-                  )}
-                </div>
-
-                {/* Nerve & Blood */}
-                <div className="grid grid-cols-1 gap-1.5 border-t border-slate-900 pt-1.5">
-                  <div>
-                    <span className="text-slate-500 font-bold uppercase text-[8px] block">Innervation:</span>
-                    <span className="text-violet-300 block leading-snug">{muscle.innervation}</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-500 font-bold uppercase text-[8px] block">Blood Supply:</span>
-                    <span className="text-red-400 block leading-snug">{muscle.bloodSupply}</span>
-                  </div>
-                </div>
-
-                {/* Synergists & Antagonists */}
-                {synergistIds.length > 0 && (
-                  <div className="border-t border-slate-900 pt-1.5">
-                    <span className="text-slate-500 font-bold uppercase text-[8px] block mb-0.5">Synergists:</span>
-                    <div className="flex flex-wrap gap-1">
-                      {synergistIds.map(id => {
-                        const sm = muscleDatabaseMap.get(id);
-                        return sm ? (
-                          <button key={id} onClick={() => setSelectedMuscleId(id)}
-                            className="text-[7px] px-1.5 py-0.5 rounded bg-emerald-900/30 text-emerald-400 border border-emerald-800/40 hover:bg-emerald-800/40 transition-all">
-                            {sm.displayName}
-                          </button>
-                        ) : null;
-                      })}
-                    </div>
-                  </div>
-                )}
-                {antagonistIds.length > 0 && (
-                  <div className="border-t border-slate-900 pt-1.5">
-                    <span className="text-slate-500 font-bold uppercase text-[8px] block mb-0.5">Antagonists:</span>
-                    <div className="flex flex-wrap gap-1">
-                      {antagonistIds.map(id => {
-                        const am = muscleDatabaseMap.get(id);
-                        return am ? (
-                          <button key={id} onClick={() => setSelectedMuscleId(id)}
-                            className="text-[7px] px-1.5 py-0.5 rounded bg-rose-900/30 text-rose-400 border border-rose-800/40 hover:bg-rose-800/40 transition-all">
-                            {am.displayName}
-                          </button>
-                        ) : null;
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Clinical */}
-                <div className="border-t border-slate-900 pt-1.5">
-                  <span className="text-slate-500 font-bold uppercase text-[8px] block">Clinical Notes:</span>
-                  <span className="text-slate-400 block italic leading-snug">{muscle.clinicalNotes}</span>
-                </div>
-                <div>
-                  <span className="text-slate-500 font-bold uppercase text-[8px] block">Common Injuries:</span>
-                  <span className="text-amber-400 block leading-snug">{muscle.commonInjuries}</span>
-                </div>
-
-                {/* Fiber & joints */}
-                <div className="border-t border-slate-900 pt-1.5 grid grid-cols-2 gap-1 text-[8px] text-slate-500">
-                  <div><span className="font-bold block">Fiber Dir.:</span><span className="text-slate-400">{muscle.fiberDirection}</span></div>
-                  <div><span className="font-bold block">Joints:</span><span className="text-slate-400">{muscle.crossesJoints.join(', ') || '—'}</span></div>
-                </div>
-              </div>
-            );
-          })() : selectedOrganId ? (
-            (() => {
+              // ── Skeletal Bone Inspector (Phase 1) ─────────────────────
               const boneComp = registry.getComponent<BoneComponent>(selectedOrganId, 'BoneComponent');
               if (boneComp) {
                 const desc = bonesCatalog.find(b => b.id === selectedOrganId)?.description || '';
                 const clinical = clinicalBoneDatabase[selectedOrganId];
+                
+                // Query joint entities connecting this bone
                 const joints = registry.query(['JointComponent']);
                 const connectedJoints: JointComponent[] = [];
                 for (const jId of joints) {
                   const jComp = registry.getComponent<JointComponent>(jId, 'JointComponent');
-                  if (jComp && jComp.connectedBones.includes(selectedOrganId)) connectedJoints.push(jComp);
+                  if (jComp && jComp.connectedBones.includes(selectedOrganId)) {
+                    connectedJoints.push(jComp);
+                  }
                 }
+
                 const isIsolated = isolatedBoneId === selectedOrganId;
                 const isHidden = hiddenBones.has(selectedOrganId);
+
                 return (
                   <div className="text-[10px] text-slate-300 flex flex-col gap-2.5 bg-slate-950/40 p-2.5 rounded border border-slate-900 max-h-[460px] overflow-y-auto select-text">
                     <div className="flex justify-between items-start">
                       <div>
                         <div className="font-bold text-cyan-400 text-xs leading-tight">{boneComp.displayName}</div>
-                        <div className="text-[8px] text-slate-500 uppercase font-semibold tracking-wider">{boneComp.latinName}</div>
+                        <div className="text-[8px] text-slate-500 uppercase font-semibold tracking-wider">
+                          {boneComp.latinName}
+                        </div>
                       </div>
                       <span className="text-[8px] bg-slate-900 border border-slate-800 text-slate-400 px-1 rounded">
                         {clinical?.boneType || 'flat'}
                       </span>
                     </div>
+
+                    {/* Interactive Action Controls */}
                     <div className="grid grid-cols-3 gap-1.5 border-y border-slate-900 py-1.5">
-                      <button onClick={() => { setIsolatedBoneId(isIsolated ? null : selectedOrganId); setShowAdjacentOnly(true); }}
-                        className={`py-1 px-1.5 rounded text-[8px] font-bold uppercase transition-all ${isIsolated ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/50' : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-850'}`}>
+                      <button
+                        onClick={() => {
+                          setIsolatedBoneId(isIsolated ? null : selectedOrganId);
+                          setShowAdjacentOnly(true);
+                        }}
+                        className={`py-1 px-1.5 rounded text-[8px] font-bold uppercase transition-all ${
+                          isIsolated ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/50' : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-850'
+                        }`}
+                      >
                         {isIsolated ? 'Exit Isolate' : 'Isolate'}
                       </button>
-                      <button onClick={() => { const next = new Set(hiddenBones); if (isHidden) next.delete(selectedOrganId); else next.add(selectedOrganId); setHiddenBones(next); }}
-                        className="py-1 px-1.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-850 text-[8px] font-bold uppercase">
+                      <button
+                        onClick={() => {
+                          const next = new Set(hiddenBones);
+                          if (isHidden) next.delete(selectedOrganId);
+                          else next.add(selectedOrganId);
+                          setHiddenBones(next);
+                        }}
+                        className="py-1 px-1.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-850 text-[8px] font-bold uppercase"
+                      >
                         {isHidden ? 'Show' : 'Hide'}
                       </button>
-                      <button onClick={() => setShowAdjacentOnly(!showAdjacentOnly)}
-                        className={`py-1 px-1.5 rounded text-[8px] font-bold uppercase transition-all ${showAdjacentOnly ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/50' : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-850'}`}
-                        disabled={!isIsolated}>
+                      <button
+                        onClick={() => setShowAdjacentOnly(!showAdjacentOnly)}
+                        className={`py-1 px-1.5 rounded text-[8px] font-bold uppercase transition-all ${
+                          showAdjacentOnly ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/50' : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-850'
+                        }`}
+                        disabled={!isIsolated}
+                        title="Show adjacent bones during isolation"
+                      >
                         + Adjacent
                       </button>
                     </div>
+
+                    {/* Description */}
                     <p className="text-slate-400 leading-relaxed">{desc}</p>
+
+                    {/* Educational / Clinical Details */}
                     {clinical && (
                       <div className="flex flex-col gap-2 border-t border-slate-900 pt-2">
-                        <div><span className="text-slate-500 font-semibold uppercase text-[8px] block">Arterial Supply:</span><span className="text-slate-400 block">{clinical.bloodSupply}</span></div>
-                        <div><span className="text-slate-500 font-semibold uppercase text-[8px] block">Innervation:</span><span className="text-slate-400 block">{clinical.nerveSupply}</span></div>
-                        {clinical.muscleOrigins.length > 0 && <div><span className="text-slate-500 font-semibold uppercase text-[8px] block">Muscle Origins:</span><span className="text-slate-400 block">{clinical.muscleOrigins.join(', ')}</span></div>}
-                        <div><span className="text-slate-500 font-semibold uppercase text-[8px] block">Clinical Notes:</span><span className="text-slate-400 block italic">{clinical.clinicalNotes}</span></div>
-                        <div><span className="text-slate-500 font-semibold uppercase text-[8px] block">Fractures:</span><span className="text-slate-400 block">{clinical.commonFractures}</span></div>
-                        <div><span className="text-slate-500 font-semibold uppercase text-[8px] block">Did You Know?</span><span className="text-slate-400 block">{clinical.interestingFacts}</span></div>
+                        <div>
+                          <span className="text-slate-500 font-semibold uppercase text-[8px] block">Arterial Supply:</span>
+                          <span className="text-slate-400 block">{clinical.bloodSupply}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500 font-semibold uppercase text-[8px] block">Innervation:</span>
+                          <span className="text-slate-400 block">{clinical.nerveSupply}</span>
+                        </div>
+                        {clinical.muscleOrigins.length > 0 && (
+                          <div>
+                            <span className="text-slate-500 font-semibold uppercase text-[8px] block">Muscle Origins:</span>
+                            <span className="text-slate-400 block">{clinical.muscleOrigins.join(', ')}</span>
+                          </div>
+                        )}
+                        {clinical.muscleInsertions.length > 0 && (
+                          <div>
+                            <span className="text-slate-500 font-semibold uppercase text-[8px] block">Muscle Insertions:</span>
+                            <span className="text-slate-400 block">{clinical.muscleInsertions.join(', ')}</span>
+                          </div>
+                        )}
+                        <div>
+                          <span className="text-slate-500 font-semibold uppercase text-[8px] block">Clinical Notes:</span>
+                          <span className="text-slate-400 block italic">{clinical.clinicalNotes}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500 font-semibold uppercase text-[8px] block">Fractures:</span>
+                          <span className="text-slate-400 block">{clinical.commonFractures}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500 font-semibold uppercase text-[8px] block">Did You Know?</span>
+                          <span className="text-slate-400 block">{clinical.interestingFacts}</span>
+                        </div>
                       </div>
                     )}
+
+                    {/* Scene Graph hierarchy links */}
+                    <div className="grid grid-cols-2 gap-2 mt-1 border-t border-slate-900 pt-1 text-[8px] text-slate-500">
+                      <div>
+                        <span className="font-semibold uppercase block">Parent Node:</span>
+                        <span className="text-slate-400 block truncate">{boneComp.parentBone || 'None (Root)'}</span>
+                      </div>
+                      <div>
+                        <span className="font-semibold uppercase block">Pivot Point:</span>
+                        <span className="text-slate-400 block">({boneComp.pivot.x}, {boneComp.pivot.y})</span>
+                      </div>
+                    </div>
+
+                    {boneComp.children.length > 0 && (
+                      <div className="mt-1">
+                        <span className="text-slate-500 font-semibold uppercase text-[8px] block">Child Nodes:</span>
+                        <span className="text-slate-400 block max-h-12 overflow-y-auto leading-relaxed">
+                          {boneComp.children.map(c => c.replace('bone-', '')).join(', ')}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Joint Articulations */}
                     {connectedJoints.length > 0 && (
                       <div className="mt-1.5 border-t border-slate-900 pt-1.5">
                         <span className="text-slate-500 font-semibold uppercase text-[8px] block mb-1">Joint Articulations:</span>
@@ -988,10 +711,34 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
                           {connectedJoints.map((j, i) => (
                             <div key={i} className="bg-slate-950/40 p-1.5 rounded border border-slate-900">
                               <div className="font-bold text-slate-300">{j.displayName}</div>
-                              <div className="text-[8px] text-slate-500 uppercase mt-0.5">Type: {j.jointType} | DoF: {j.degreesOfFreedom}</div>
+                              <div className="text-[8px] text-slate-500 uppercase mt-0.5">
+                                Type: {j.jointType} | DoF: {j.degreesOfFreedom}
+                              </div>
+                              {Object.keys(j.rangeOfMotion).length > 0 && (
+                                <div className="text-[8px] text-slate-400 mt-0.5">
+                                  Range: {Object.entries(j.rangeOfMotion).map(([k, v]) => `${k}: ${v?.[0]}° to ${v?.[1]}°`).join(', ')}
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>
+                      </div>
+                    )}
+
+                    {/* Landmarks Anchors coordinates */}
+                    {boneComp.landmarks.length > 0 && (
+                      <div className="mt-1.5 border-t border-slate-900 pt-1.5">
+                        <span className="text-slate-500 font-semibold uppercase text-[8px] block mb-1">Active Landmarks:</span>
+                        <ul className="flex flex-col gap-1">
+                          {boneComp.landmarks.map((l, i) => (
+                            <li key={i} className="flex justify-between bg-slate-950/60 px-1.5 py-1 rounded border border-slate-900/60">
+                              <span className="font-bold text-cyan-400">{l.name}</span>
+                              <span className="text-[8px] text-slate-500 font-mono">
+                                W: ({l.worldPosition.x.toFixed(1)}, {l.worldPosition.y.toFixed(1)})
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
                       </div>
                     )}
                   </div>
@@ -1001,11 +748,7 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
             })()
           ) : (
             <div className="text-slate-500 text-[10px] italic bg-slate-950/20 p-2.5 rounded border border-slate-900/40 text-center">
-              {activeSystemId === 'cardiovascular'
-                ? 'Click any vessel or heart chamber to inspect anatomical hierarchy and blood flow loop.'
-                : activeSystemId === 'muscular'
-                ? 'Click any muscle to inspect attachments, innervation and clinical data.'
-                : 'Select any bone to inspect its coordinate structures.'}
+              Select any bone or muscle to inspect its anatomical properties.
             </div>
           )}
         </div>
@@ -1034,26 +777,8 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
             ))}
           </div>
           <div className="flex gap-2 items-center">
-            {/* Cardiovascular Alignment Validation Badge */}
-            {activeSystemId === 'cardiovascular' && (() => {
-              const val = validatePositionalError();
-              return (
-                <div
-                  title={`Cardiovascular Reconstruction Positional Accuracy:\nAvg Error: ${val.avgError}px (Tolerance: <= 3.0px)\nMax Error: ${val.maxError}px (Tolerance: <= 5.0px)`}
-                  className={`px-2 py-1 rounded text-[8px] font-bold uppercase tracking-wider border flex items-center gap-1.5 ${
-                    val.isValid
-                      ? 'bg-rose-500/10 border-rose-500/30 text-rose-400'
-                      : 'bg-amber-500/10 border-amber-500/30 text-amber-400'
-                  }`}
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
-                  Blueprint Accuracy: {val.avgError}px err ({val.isValid ? "PASSED" : "RE-TRACE"})
-                </div>
-              );
-            })()}
-
             {/* Skeletal Validation Badge */}
-            {activeSystemId === 'skeletal' && (() => {
+            {(() => {
               const report = SkeletalValidator.validate(registry);
               return (
                 <div
@@ -1070,24 +795,10 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
               );
             })()}
 
-            <select
-              value={view}
-              onChange={(e) => setView(e.target.value)}
-              className="glass-input text-[10px] uppercase font-bold tracking-wider rounded px-2.5 py-1.5 bg-slate-900 border border-slate-800 text-slate-300 hover:text-white cursor-pointer"
-            >
-              {[
-                { id: 'anterior', name: 'Anterior (Front)' },
-                { id: 'posterior', name: 'Posterior (Back)' },
-                { id: 'leftLateral', name: 'Left Lateral (Profile)' },
-                { id: 'rightLateral', name: 'Right Lateral (Profile)' },
-                { id: 'superior', name: 'Superior (Top)' },
-                { id: 'inferior', name: 'Inferior (Bottom)' }
-              ].map(v => (
-                <option key={v.id} value={v.id} className="bg-slate-950 text-slate-300 font-sans text-xs">
-                  {v.name}
-                </option>
-              ))}
-            </select>
+            <div className="px-2.5 py-1.5 bg-slate-900 border border-slate-800 text-slate-300 text-[10px] uppercase font-bold tracking-wider rounded flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+              Anterior (Front)
+            </div>
           </div>
         </div>
 
@@ -1102,93 +813,42 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
           {/* LEFT OVERLAY: LAYER CONTROLS */}
           <div className="absolute top-4 left-4 p-3 bg-slate-900/90 border border-slate-800/60 rounded-xl backdrop-blur-md z-10 flex flex-col gap-2 text-[9px] text-slate-400 w-44 shadow-2xl">
             <div className="font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1 mb-1">
-              {activeSystemId === 'cardiovascular' ? '🫀 CARDIO LAYERS' : activeSystemId === 'muscular' ? '💪 MUSCLE LAYERS' : '🦴 BONE LAYERS'}
+              ANATOMICAL LAYERS
             </div>
-            {activeSystemId === 'cardiovascular' ? (
-              /* CARDIOVASCULAR LAYER CONTROLS */
-              <>
-                {([
-                  { label: '📸 Reference Image', val: refImageOpacity, set: setRefImageOpacity, show: showRefImage, toggle: setShowRefImage },
-                  { label: '🫀 Vessel Network', val: showCardiovascularVessels ? 1 : 0, set: (v: number) => setShowCardiovascularVessels(v > 0), show: showCardiovascularVessels, toggle: setShowCardiovascularVessels },
-                  { label: '🦴 Bone Backdrop', val: showSkeleton ? opacitySkeleton : 0, set: (v: number) => { setOpacitySkeleton(v); setShowSkeleton(v > 0); }, show: showSkeleton, toggle: setShowSkeleton },
-                ] as { label: string; val: number; set: (v: number) => void; show: boolean; toggle: (v: boolean) => void }[]).map(layer => (
-                  <div key={layer.label} className="flex flex-col gap-0.5">
-                    <div className="flex justify-between font-semibold items-center">
-                      <span>{layer.label}</span>
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => { layer.toggle(!layer.show); layer.set(layer.show ? 0.0 : 1.0); }} className="text-slate-500 hover:text-slate-300">
-                          {layer.show ? <Eye className="w-3 h-3 text-rose-400" /> : <EyeOff className="w-3 h-3" />}
-                        </button>
-                        <span className="text-slate-600 w-6 text-right">{Math.round(layer.val * 100)}%</span>
-                      </div>
-                    </div>
-                    <input type="range" min="0" max="1" step="0.05" value={layer.val}
-                      onChange={e => { const v = parseFloat(e.target.value); layer.set(v); layer.toggle(v > 0); }}
-                      className="accent-rose-500 h-1 bg-slate-950 rounded cursor-pointer" />
-                  </div>
-                ))}
-              </>
-            ) : activeSystemId === 'muscular' ? (
-              /* MUSCLE LAYER CONTROLS */
-              <>
-                {([
-                  { label: '📸 Reference Image', val: refImageOpacity, set: setRefImageOpacity, show: showRefImage, toggle: setShowRefImage },
-                  { label: '💪 Muscle Hit Zones', val: showMuscleHitZones ? 1 : 0, set: (v: number) => setShowMuscleHitZones(v > 0), show: showMuscleHitZones, toggle: setShowMuscleHitZones },
-                  { label: '🦴 Bone Overlay', val: showHitZones ? 0.4 : 0, set: (v: number) => setShowHitZones(v > 0), show: showHitZones, toggle: setShowHitZones },
-                ] as { label: string; val: number; set: (v: number) => void; show: boolean; toggle: (v: boolean) => void }[]).map(layer => (
-                  <div key={layer.label} className="flex flex-col gap-0.5">
-                    <div className="flex justify-between font-semibold items-center">
-                      <span>{layer.label}</span>
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => { layer.toggle(!layer.show); layer.set(layer.show ? 0.0 : 1.0); }} className="text-slate-500 hover:text-slate-300">
-                          {layer.show ? <Eye className="w-3 h-3 text-orange-400" /> : <EyeOff className="w-3 h-3" />}
-                        </button>
-                        <span className="text-slate-600 w-6 text-right">{Math.round(layer.val * 100)}%</span>
-                      </div>
-                    </div>
-                    <input type="range" min="0" max="1" step="0.05" value={layer.val}
-                      onChange={e => { const v = parseFloat(e.target.value); layer.set(v); layer.toggle(v > 0); }}
-                      className="accent-orange-500 h-1 bg-slate-950 rounded cursor-pointer" />
-                  </div>
-                ))}
-                {/* Fascial depth filter */}
-                <div className="border-t border-slate-900 pt-2 mt-1">
-                  <div className="text-[8px] font-bold uppercase text-slate-500 mb-1">Fascial Depth</div>
-                  {(['all', 'superficial', 'intermediate', 'deep'] as const).map(layer => (
-                    <button key={layer}
-                      onClick={() => setMuscleLayerFilter(layer)}
-                      className={`w-full text-left py-0.5 px-1.5 rounded text-[8px] mb-0.5 transition-all ${
-                        muscleLayerFilter === layer ? 'bg-orange-500/20 text-orange-300' : 'text-slate-500 hover:text-slate-300'
-                      }`}>
-                      {layer === 'all' ? '● All Layers' : layer === 'superficial' ? '◎ Superficial' : layer === 'intermediate' ? '◉ Intermediate' : '⬤ Deep'}
+            {([
+              { label: '📸 Reference Image', val: refImageOpacity, set: setRefImageOpacity, show: showRefImage, toggle: setShowRefImage },
+              { label: '🫥 Skin Envelope', val: opacitySkin, set: setOpacitySkin, show: showSkin, toggle: setShowSkin },
+              { label: '🦴 Skeleton Frame', val: opacitySkeleton, set: setOpacitySkeleton, show: showSkeleton, toggle: setShowSkeleton },
+              { label: '🎯 Hit Zones', val: showHitZones ? 1 : 0, set: (v: number) => setShowHitZones(v > 0), show: showHitZones, toggle: setShowHitZones }
+            ] as { label: string; val: number; set: (v: number) => void; show: boolean; toggle: (v: boolean) => void }[]).map(layer => (
+              <div key={layer.label} className="flex flex-col gap-0.5">
+                <div className="flex justify-between font-semibold items-center">
+                  <span>{layer.label}</span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => {
+                        layer.toggle(!layer.show);
+                        layer.set(layer.show ? 0.0 : 1.0);
+                      }}
+                      className="text-slate-500 hover:text-slate-300"
+                    >
+                      {layer.show ? <Eye className="w-3 h-3 text-medical-400" /> : <EyeOff className="w-3 h-3" />}
                     </button>
-                  ))}
-                </div>
-              </>
-            ) : (
-              /* BONE LAYER CONTROLS */
-              ([
-                { label: '📸 Reference Image', val: refImageOpacity, set: setRefImageOpacity, show: showRefImage, toggle: setShowRefImage },
-                { label: '🫥 Skin Envelope', val: opacitySkin, set: setOpacitySkin, show: showSkin, toggle: setShowSkin },
-                { label: '🦴 Skeleton Frame', val: opacitySkeleton, set: setOpacitySkeleton, show: showSkeleton, toggle: setShowSkeleton },
-                { label: '🎯 Hit Zones', val: showHitZones ? 1 : 0, set: (v: number) => setShowHitZones(v > 0), show: showHitZones, toggle: setShowHitZones }
-              ] as { label: string; val: number; set: (v: number) => void; show: boolean; toggle: (v: boolean) => void }[]).map(layer => (
-                <div key={layer.label} className="flex flex-col gap-0.5">
-                  <div className="flex justify-between font-semibold items-center">
-                    <span>{layer.label}</span>
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => { layer.toggle(!layer.show); layer.set(layer.show ? 0.0 : 1.0); }} className="text-slate-500 hover:text-slate-300">
-                        {layer.show ? <Eye className="w-3 h-3 text-medical-400" /> : <EyeOff className="w-3 h-3" />}
-                      </button>
-                      <span className="text-slate-600 w-6 text-right">{Math.round(layer.val * 100)}%</span>
-                    </div>
+                    <span className="text-slate-600 w-6 text-right">{Math.round(layer.val * 100)}%</span>
                   </div>
-                  <input type="range" min="0" max="1" step="0.05" value={layer.val}
-                    onChange={e => { const v = parseFloat(e.target.value); layer.set(v); layer.toggle(v > 0); }}
-                    className="accent-medical-500 h-1 bg-slate-950 rounded cursor-pointer" />
                 </div>
-              ))
-            )}
+                <input
+                  type="range" min="0" max="1" step="0.05"
+                  value={layer.val}
+                  onChange={e => {
+                    const v = parseFloat(e.target.value);
+                    layer.set(v);
+                    layer.toggle(v > 0);
+                  }}
+                  className="accent-medical-500 h-1 bg-slate-950 rounded cursor-pointer"
+                />
+              </div>
+            ))}
           </div>
 
           {/* TOP RIGHT: MINIMAP */}
@@ -1224,61 +884,26 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
               maxHeight: '90%',
             }}
           >
-            {/* LAYER 1: INNERBODY REFERENCE PNGs (Skeletal, Muscular, or Cardiovascular) */}
+            {/* LAYER 1: INNERBODY REFERENCE PNG */}
             {showRefImage && (
-              <>
-                {/* Skeletal PNG */}
-                {(activeSystemId === 'skeletal' || (activeSystemId === 'all' && showSkeleton)) && (
-                  <img
-                    src={skeletalPng}
-                    alt="Human Skeletal System - Anterior View"
-                    style={{
-                      position: 'absolute', inset: 0, width: '100%', height: '100%',
-                      objectFit: 'contain',
-                      opacity: refImageOpacity,
-                      filter: `invert(1) brightness(1.15) contrast(1.1) saturate(1.3)`,
-                      mixBlendMode: 'screen',
-                      transition: 'opacity 0.4s ease, filter 0.4s ease',
-                      userSelect: 'none', pointerEvents: 'none'
-                    }}
-                    draggable={false}
-                  />
-                )}
-                {/* Muscular PNG */}
-                {(activeSystemId === 'muscular' || (activeSystemId === 'all' && showMuscle)) && (
-                  <img
-                    src={muscularPng}
-                    alt="Human Muscular System - Anterior View"
-                    style={{
-                      position: 'absolute', inset: 0, width: '100%', height: '100%',
-                      objectFit: 'contain',
-                      opacity: refImageOpacity,
-                      filter: `invert(1) brightness(1.2) contrast(1.15) saturate(1.4)`,
-                      mixBlendMode: 'screen',
-                      transition: 'opacity 0.4s ease, filter 0.4s ease',
-                      userSelect: 'none', pointerEvents: 'none'
-                    }}
-                    draggable={false}
-                  />
-                )}
-                {/* Cardiovascular PNG */}
-                {(activeSystemId === 'cardiovascular' || (activeSystemId === 'all' && showCardio)) && (
-                  <img
-                    src={cardiovascularPng}
-                    alt="Human Cardiovascular System - Anterior View"
-                    style={{
-                      position: 'absolute', inset: 0, width: '100%', height: '100%',
-                      objectFit: 'contain',
-                      opacity: refImageOpacity,
-                      filter: `invert(1) brightness(1.25) contrast(1.2) saturate(1.5)`,
-                      mixBlendMode: 'screen',
-                      transition: 'opacity 0.4s ease, filter 0.4s ease',
-                      userSelect: 'none', pointerEvents: 'none'
-                    }}
-                    draggable={false}
-                  />
-                )}
-              </>
+              <img
+                src={activeSystemId === 'muscular' ? muscularPng : skeletalPng}
+                alt={activeSystemId === 'muscular' ? 'Human Muscular System - Anterior View' : 'Human Skeletal System - Anterior View'}
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'contain',
+                  opacity: refImageOpacity,
+                  filter: `invert(1) brightness(${activeSystemId === 'skeletal' || activeSystemId === 'muscular' ? 1.15 : 1.0}) contrast(1.1) saturate(1.3)`,
+                  mixBlendMode: 'screen',
+                  transition: 'opacity 0.4s ease, filter 0.4s ease',
+                  userSelect: 'none',
+                  pointerEvents: 'none'
+                }}
+                draggable={false}
+              />
             )}
 
             {/* LAYER 2: SVG INTERACTIVE HIT-ZONES */}
@@ -1301,17 +926,7 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
               </defs>
 
               {showHitZones && (() => {
-                // Each hit zone: { id, label, shape, ...coords }
-                // Coordinates calibrated to 340x560 PNG (anterior female view)
-                const hitZones: Array<{
-                  id: string;
-                  label: string;
-                  type: 'ellipse' | 'rect' | 'polygon';
-                  cx?: number; cy?: number; rx?: number; ry?: number;
-                  x?: number; y?: number; w?: number; h?: number;
-                  points?: string;
-                }> = [
-                  // ── SKULL / CRANIUM (maps to frontal bone – largest cranial target) ──
+                const skeletalZones = [
                   { id: 'bone-frontal',   label: 'Skull — Frontal Bone',           type: 'ellipse', cx: 170, cy: 38,  rx: 30, ry: 26 },
                   { id: 'bone-parietal',  label: 'Skull — Parietal Bones',         type: 'ellipse', cx: 170, cy: 22,  rx: 28, ry: 14 },
                   { id: 'bone-temporal',  label: 'Skull — Temporal Bones',         type: 'ellipse', cx: 148, cy: 52,  rx: 14, ry: 20 },
@@ -1319,36 +934,28 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
                   { id: 'bone-mandible',  label: 'Mandible (Jawbone)',             type: 'ellipse', cx: 170, cy: 82,  rx: 22, ry: 13 },
                   { id: 'bone-maxilla',   label: 'Maxilla (Upper Jaw)',            type: 'ellipse', cx: 170, cy: 72,  rx: 14,  ry: 8  },
                   { id: 'bone-zygomatic', label: 'Zygomatic (Cheekbone)',          type: 'ellipse', cx: 148, cy: 66,  rx: 10,  ry: 8  },
-                  // ── CERVICAL SPINE ──
                   { id: 'bone-cervical',  label: 'Cervical Spine (C1–C7)',         type: 'ellipse', cx: 170, cy: 104, rx: 9,  ry: 16 },
-                  // ── SHOULDER GIRDLE ──
                   { id: 'bone-clavicle',  label: 'Clavicles (Collarbones)',        type: 'polygon', points: '120,126 155,116 185,116 220,126 218,133 185,122 155,122' },
                   { id: 'bone-scapula',   label: 'Scapulae (Shoulder Blades)',     type: 'ellipse', cx: 112, cy: 162, rx: 22, ry: 28 },
-                  // ── THORAX ──
                   { id: 'bone-sternum-manubrium', label: 'Manubrium (Top Sternum)', type: 'rect', x: 160, y: 126, w: 20, h: 22 },
                   { id: 'bone-sternum-body',      label: 'Sternum Body',            type: 'rect', x: 160, y: 148, w: 18, h: 48 },
                   { id: 'bone-sternum-xiphoid',   label: 'Xiphoid Process',         type: 'ellipse', cx: 170, cy: 204, rx: 7, ry: 8 },
                   { id: 'bone-ribs-true',    label: 'True Ribs (1–7)',             type: 'polygon', points: '132,128 168,124 172,124 210,128 218,172 212,200 175,208 165,208 128,200 122,172' },
                   { id: 'bone-ribs-false',   label: 'False Ribs (8–10)',           type: 'polygon', points: '128,200 165,208 175,208 212,200 214,220 170,228 126,220' },
                   { id: 'bone-ribs-floating', label: 'Floating Ribs (11–12)',      type: 'polygon', points: '135,220 170,228 205,220 200,238 170,244 140,238' },
-                  // ── THORACIC SPINE ──
                   { id: 'bone-thoracic',  label: 'Thoracic Spine (T1–T12)',        type: 'ellipse', cx: 170, cy: 175, rx: 8,  ry: 40 },
-                  // ── LUMBAR SPINE ──
                   { id: 'bone-lumbar',    label: 'Lumbar Spine (L1–L5)',           type: 'ellipse', cx: 170, cy: 240, rx: 8,  ry: 26 },
-                  // ── PELVIS ──
                   { id: 'bone-ilium',     label: 'Ilium (Hip Bone)',               type: 'ellipse', cx: 150, cy: 288, rx: 28, ry: 22 },
                   { id: 'bone-sacrum',    label: 'Sacrum',                          type: 'ellipse', cx: 170, cy: 292, rx: 14, ry: 20 },
                   { id: 'bone-pubis',     label: 'Pubic Symphysis',                type: 'ellipse', cx: 170, cy: 314, rx: 16, ry: 9  },
                   { id: 'bone-ischium',   label: 'Ischium (Sitting Bone)',         type: 'ellipse', cx: 150, cy: 310, rx: 12, ry: 10 },
                   { id: 'bone-coccyx',    label: 'Coccyx (Tailbone)',              type: 'ellipse', cx: 170, cy: 314, rx: 6,  ry: 7  },
-                  // ── UPPER LIMBS (ECS uses single entity per bone, bilateral) ──
                   { id: 'bone-humerus',   label: 'Humerus (Upper Arm)',            type: 'ellipse', cx: 102, cy: 215, rx: 12, ry: 48 },
                   { id: 'bone-radius',    label: 'Radius (Forearm)',               type: 'ellipse', cx: 94,  cy: 295, rx: 7,  ry: 38 },
                   { id: 'bone-ulna',      label: 'Ulna (Forearm)',                 type: 'ellipse', cx: 85,  cy: 295, rx: 6,  ry: 38 },
                   { id: 'bone-carpals',   label: 'Wrist (Carpals)',                type: 'ellipse', cx: 87,  cy: 347, rx: 11, ry: 9  },
                   { id: 'bone-metacarpals', label: 'Hand (Metacarpals)',           type: 'ellipse', cx: 82,  cy: 368, rx: 13, ry: 13 },
                   { id: 'bone-phalanges-hand', label: 'Finger Bones (Phalanges)', type: 'ellipse', cx: 77,  cy: 394, rx: 17, ry: 15 },
-                  // ── LOWER LIMBS ──
                   { id: 'bone-femur',     label: 'Femur (Thigh Bone)',             type: 'ellipse', cx: 148, cy: 385, rx: 17, ry: 54 },
                   { id: 'bone-patella',   label: 'Patella (Kneecap)',              type: 'ellipse', cx: 148, cy: 445, rx: 10, ry: 10 },
                   { id: 'bone-tibia',     label: 'Tibia (Shin Bone)',              type: 'ellipse', cx: 146, cy: 490, rx: 10, ry: 39 },
@@ -1358,7 +965,7 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
                   { id: 'bone-phalanges-foot', label: 'Toe Bones (Phalanges)',    type: 'ellipse', cx: 148, cy: 558, rx: 14, ry: 6  },
                 ];
 
-                return hitZones.map(zone => {
+                return skeletalZones.map((zone, idx) => {
                   const isSelected = selectedOrganId === zone.id;
                   const isHidden = hiddenBones.has(zone.id);
                   const isAdjacent = isolatedBoneId && showAdjacentOnly
@@ -1370,7 +977,6 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
                   if (isHidden) return null;
 
                   const baseOpacity = dimmed ? 0.08 : isAdjacent ? 0.35 : 0.0;
-                  const hoverOpacity = 0.28;
                   const selectedOpacity = 0.45;
                   const strokeOpacity = isSelected ? 1 : dimmed ? 0.1 : 0.0;
                   const fillColor = isSelected ? '#38bdf8' : isAdjacent ? '#818cf8' : '#38bdf8';
@@ -1387,14 +993,12 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
                     onClick: (e: React.MouseEvent) => { e.stopPropagation(); onSelectOrgan(zone.id); },
                     onMouseEnter: (e: React.MouseEvent) => {
                       const rect = (e.currentTarget as SVGElement).closest('div')?.getBoundingClientRect();
-                      const svgEl = (e.currentTarget as SVGElement).closest('svg');
-                      const svgRect = svgEl?.getBoundingClientRect();
-                      if (svgRect) {
+                      if (rect) {
                         setHoveredOrgan({
                           id: zone.id,
                           name: zone.label,
-                          x: e.clientX - (rect?.left ?? 0) + 12,
-                          y: e.clientY - (rect?.top ?? 0) - 10
+                          x: e.clientX - rect.left + 12,
+                          y: e.clientY - rect.top - 10
                         });
                       }
                     },
@@ -1411,202 +1015,164 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
                     onMouseLeave: () => setHoveredOrgan(null),
                   };
 
-                  if (zone.type === 'ellipse') {
-                    return <ellipse key={zone.id} cx={zone.cx} cy={zone.cy} rx={zone.rx} ry={zone.ry} {...commonProps} />;
-                  } else if (zone.type === 'rect') {
-                    return <rect key={zone.id} x={zone.x} y={zone.y} width={zone.w} height={zone.h} rx={3} {...commonProps} />;
-                  } else {
-                    return <polygon key={zone.id} points={zone.points} {...commonProps} />;
-                  }
+                  if (zone.type === 'ellipse') return <ellipse key={`shz-${zone.id}-${idx}`} cx={zone.cx} cy={zone.cy} rx={zone.rx} ry={zone.ry} {...commonProps} />;
+                  if (zone.type === 'rect') return <rect key={`shz-${zone.id}-${idx}`} x={zone.x} y={zone.y} width={zone.w} height={zone.h} rx={3} {...commonProps} />;
+                  return <polygon key={`shz-${zone.id}-${idx}`} points={zone.points} {...commonProps} />;
                 });
               })()}
 
-              {/* ANATOMICAL LANDMARK DOTS (CLEANED UP FOR PURE SVG BLUEPRINT VIEW) */}
+              {/* MUSCLE SVG HIT-ZONES (PHASE 2) */}
+              {showMuscleHitZones && activeSystemId === 'muscular' && (() => {
+                return MUSCLE_HIT_ZONES.map((zone, idx) => {
+                  const isSelected = selectedOrganId === zone.id;
+                  const isHidden = hiddenMuscles.has(zone.id);
+                  const isIsolated = isolatedMuscleId === zone.id;
+                  const dimmed = isolatedMuscleId && !isIsolated;
 
-              {/* LAYER 2.5: MUSCLE HIT-ZONES */}
-              {showMuscleHitZones && (
-                <g id="muscle-hit-zones">
-                  {MUSCLE_HIT_ZONES.map((zone, i) => {
-                    if (muscleLayerFilter !== 'all' && zone.layer !== muscleLayerFilter) return null;
-                    const m = muscleDatabaseMap.get(zone.id);
-                    const isSelected = selectedMuscleId === zone.id;
-                    const isHidden = hiddenMuscles.has(zone.id);
-                    if (isHidden) return null;
+                  if (isHidden) return null;
 
-                    const isSynergist = highlightSynergists && selectedMuscleId
-                      ? MuscleInteraction.getSynergists(selectedMuscleId).includes(zone.id)
-                      : false;
-                    const isAntagonist = highlightAntagonists && selectedMuscleId
-                      ? MuscleInteraction.getAntagonists(selectedMuscleId).includes(zone.id)
-                      : false;
-                    const isIsolated = isolatedMuscleId === zone.id;
-                    const dimmed = isolatedMuscleId && !isIsolated;
+                  const baseOpacity = dimmed ? 0.05 : 0.0;
+                  const selectedOpacity = 0.45;
+                  const strokeOpacity = isSelected ? 1 : dimmed ? 0.08 : 0.0;
+                  const fillColor = isSelected ? '#f59e0b' : zone.color;
+                  const strokeColor = isSelected ? '#fbbf24' : zone.color;
 
-                    const fillColor = isSelected
-                      ? zone.color
-                      : isSynergist ? '#34d399'
-                      : isAntagonist ? '#f87171'
-                      : zone.color;
-                    const fillOpacity = dimmed ? 0.04 : isSelected ? 0.45 : isSynergist || isAntagonist ? 0.35 : 0.0;
-                    const strokeOpacity = isSelected ? 1 : isSynergist || isAntagonist ? 0.8 : 0.0;
+                  const commonProps = {
+                    fill: fillColor,
+                    fillOpacity: isSelected ? selectedOpacity : baseOpacity,
+                    stroke: strokeColor,
+                    strokeWidth: isSelected ? 2 : 1,
+                    strokeOpacity,
+                    filter: isSelected ? 'url(#hz-glow-selected)' : undefined,
+                    style: { cursor: 'pointer', transition: 'fill-opacity 0.15s, stroke-opacity 0.15s' },
+                    onClick: (e: React.MouseEvent) => { e.stopPropagation(); onSelectOrgan(zone.id); },
+                    onMouseEnter: (e: React.MouseEvent) => {
+                      const rect = (e.currentTarget as SVGElement).closest('div')?.getBoundingClientRect();
+                      if (rect) {
+                        setHoveredOrgan({
+                          id: zone.id,
+                          name: zone.label,
+                          x: e.clientX - rect.left + 12,
+                          y: e.clientY - rect.top - 10
+                        });
+                      }
+                    },
+                    onMouseMove: (e: React.MouseEvent) => {
+                      const rect = (e.currentTarget as SVGElement).closest('div')?.getBoundingClientRect();
+                      if (rect) {
+                        setHoveredOrgan(prev => prev ? {
+                          ...prev,
+                          x: e.clientX - rect.left + 12,
+                          y: e.clientY - rect.top - 10
+                        } : null);
+                      }
+                    },
+                    onMouseLeave: () => setHoveredOrgan(null),
+                  };
 
-                    const uniqueKey = `muscle-hz-${zone.id}-${i}`;
-                    const commonProps = {
-                      fill: fillColor,
-                      fillOpacity,
-                      stroke: fillColor,
-                      strokeWidth: isSelected ? 2 : 1.2,
-                      strokeOpacity,
-                      filter: isSelected ? 'url(#hz-glow-selected)' : undefined,
-                      style: {
-                        cursor: 'pointer',
-                        transition: 'fill-opacity 0.15s, stroke-opacity 0.15s',
-                        display: activeSystemId !== 'muscular' && !isSynergist && !isAntagonist && !isSelected ? 'none' : undefined
-                      },
-                      className: 'muscle-hit-zone',
-                      onClick: (e: React.MouseEvent) => {
+                  if (zone.type === 'ellipse') return <ellipse key={`mhz-${zone.id}-${idx}`} cx={zone.cx} cy={zone.cy} rx={zone.rx} ry={zone.ry} {...commonProps} />;
+                  if (zone.type === 'rect') return <rect key={`mhz-${zone.id}-${idx}`} x={zone.x} y={zone.y} width={zone.w} height={zone.h} rx={3} {...commonProps} />;
+                  return <polygon key={`mhz-${zone.id}-${idx}`} points={zone.points} {...commonProps} />;
+                });
+              })()}
+
+              {/* CARDIOVASCULAR SVG VESSEL PATHS (PHASE 3) */}
+              {(activeSystemId === 'cardiovascular' || (activeSystemId === 'all' && showCardio)) && showCardiovascularVessels && (() => {
+                const activeVessels = filterVesselsByLOD(cardioLODFilter);
+                const hierarchyPath = selectedVesselId ? getAnatomicalHierarchyPath(selectedVesselId) : [];
+                const flowLoop = selectedVesselId ? getCirculatoryFlowLoop(selectedVesselId) : [];
+                const searchMatches = vesselSearchQuery.trim() ? new Set(searchVascularNodes(vesselSearchQuery).map(v => v.id)) : null;
+
+                return activeVessels.map(vessel => {
+                  const isSelected = selectedVesselId === vessel.id;
+                  const isHierarchyMatch = highlightTraceMode !== 'flow' && hierarchyPath.includes(vessel.id);
+                  const isFlowMatch = highlightTraceMode !== 'hierarchy' && flowLoop.includes(vessel.id);
+                  const isSearchMatch = searchMatches ? searchMatches.has(vessel.id) : true;
+                  const dimmed = (selectedVesselId && !isSelected && !isHierarchyMatch && !isFlowMatch) || (searchMatches && !isSearchMatch);
+
+                  const strokeOpacity = isSelected ? 1 : isHierarchyMatch || isFlowMatch ? 0.9 : dimmed ? 0.15 : 0.85;
+                  const strokeWidth = isSelected ? vessel.width + 2 : isHierarchyMatch || isFlowMatch ? vessel.width + 1 : Math.max(1, vessel.width * 0.75);
+                  const strokeColor = isSelected ? '#ff2a5f' : isHierarchyMatch ? '#38bdf8' : isFlowMatch ? '#a855f7' : vessel.color;
+
+                  return (
+                    <path
+                      key={`vessel-${vessel.id}`}
+                      d={vessel.path}
+                      fill="none"
+                      stroke={strokeColor}
+                      strokeWidth={strokeWidth}
+                      strokeOpacity={strokeOpacity}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      filter={isSelected ? 'url(#hz-glow-selected)' : undefined}
+                      style={{ cursor: 'pointer', transition: 'all 0.2s ease-out' }}
+                      onClick={(e) => {
                         e.stopPropagation();
-                        setSelectedMuscleId(zone.id);
+                        setSelectedVesselId(vessel.id);
+                        setSelectedMuscleId(null);
                         onSelectOrgan(null);
-                      },
-                      onMouseEnter: (e: React.MouseEvent) => {
+                      }}
+                      onMouseEnter={(e) => {
                         const rect = (e.currentTarget as SVGElement).closest('div')?.getBoundingClientRect();
                         if (rect) {
                           setHoveredOrgan({
-                            id: zone.id,
-                            name: zone.label,
+                            id: vessel.id,
+                            name: `${vessel.name} (${vessel.latinName})`,
                             x: e.clientX - rect.left + 12,
                             y: e.clientY - rect.top - 10
                           });
                         }
-                      },
-                      onMouseMove: (e: React.MouseEvent) => {
+                      }}
+                      onMouseMove={(e) => {
                         const rect = (e.currentTarget as SVGElement).closest('div')?.getBoundingClientRect();
-                        if (rect) setHoveredOrgan(prev => prev ? { ...prev, x: e.clientX - rect.left + 12, y: e.clientY - rect.top - 10 } : null);
-                      },
-                      onMouseLeave: () => setHoveredOrgan(null),
-                    };
+                        if (rect) {
+                          setHoveredOrgan(prev => prev ? {
+                            ...prev,
+                            x: e.clientX - rect.left + 12,
+                            y: e.clientY - rect.top - 10
+                          } : null);
+                        }
+                      }}
+                      onMouseLeave={() => setHoveredOrgan(null)}
+                    />
+                  );
+                });
+              })()}
 
-                    if (zone.type === 'ellipse') {
-                      return <ellipse key={uniqueKey} cx={zone.cx} cy={zone.cy} rx={zone.rx} ry={zone.ry} {...commonProps} />;
-                    } else if (zone.type === 'rect') {
-                      return <rect key={uniqueKey} x={zone.x} y={zone.y} width={zone.w} height={zone.h} rx={3} {...commonProps} />;
-                    } else {
-                      return <polygon key={uniqueKey} points={zone.points} {...commonProps} />;
-                    }
-                  })}
-                </g>
-              )}
-
-              {/* LAYER 2.7: CARDIOVASCULAR ANATOMICAL SYSTEM (Strict Layer Order: Veins -> Arteries -> Heart) */}
-              {showCardiovascularVessels && (
-                <g id="cardiovascular-vessel-layer">
-                  {useMemo(() => {
-                    const layerOrder = { vein: 1, artery: 2, heart_vessel: 3, heart_chamber: 4, lymphatic: 0 };
-                    return [...ALL_VASCULAR_NODES].sort((a, b) => (layerOrder[a.type] || 0) - (layerOrder[b.type] || 0));
-                  }, []).map((vessel) => {
-                    if (vessel.lod > cardioLODFilter) return null;
-                    if (vesselSearchQuery.trim()) {
-                      const q = vesselSearchQuery.toLowerCase();
-                      const matches = vessel.name.toLowerCase().includes(q) || vessel.latinName.toLowerCase().includes(q) || vessel.region.toLowerCase().includes(q);
-                      if (!matches) return null;
-                    }
-
-                    const isSelected = selectedVesselId === vessel.id;
-                    const isHierarchyPath = selectedVesselId ? getAnatomicalHierarchyPath(selectedVesselId).includes(vessel.id) : false;
-                    const isFlowLoop = selectedVesselId ? getCirculatoryFlowLoop(selectedVesselId).includes(vessel.id) : false;
-
-                    let strokeColor = vessel.color;
-                    let strokeWidth = Math.max(1.2, vessel.width * 0.45);
-                    let opacity = activeSystemId === 'cardiovascular' ? 0.95 : 0.75;
-                    let filter = undefined;
-
-                    if (isSelected) {
-                      strokeColor = '#facc15';
-                      strokeWidth = Math.max(3.5, vessel.width * 0.65);
-                      opacity = 1.0;
-                      filter = 'url(#hz-glow-selected)';
-                    } else if (isFlowLoop && (highlightTraceMode === 'flow' || highlightTraceMode === 'both')) {
-                      strokeColor = '#38bdf8';
-                      strokeWidth = Math.max(2.2, vessel.width * 0.55);
-                      opacity = 0.95;
-                    } else if (isHierarchyPath && (highlightTraceMode === 'hierarchy' || highlightTraceMode === 'both')) {
-                      strokeColor = '#fb923c';
-                      strokeWidth = Math.max(2.2, vessel.width * 0.55);
-                      opacity = 0.95;
-                    }
-
-                    const isChamber = vessel.type === 'heart_chamber';
-
-                    return (
-                      <path
-                        key={`vessel-${vessel.id}`}
-                        d={vessel.path}
-                        fill={isChamber ? (isSelected ? '#facc15' : vessel.color) : 'none'}
-                        fillOpacity={isChamber ? 0.65 : 0}
-                        stroke={strokeColor}
-                        strokeWidth={strokeWidth}
-                        strokeOpacity={opacity}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        filter={filter}
-                        style={{ cursor: 'pointer', transition: 'all 0.15s ease' }}
-                        onClick={(e: React.MouseEvent) => {
-                          e.stopPropagation();
-                          setSelectedVesselId(vessel.id);
-                          setSelectedMuscleId(null);
-                          onSelectOrgan(null);
-                        }}
-                        onMouseEnter={(e: React.MouseEvent) => {
-                          const rect = (e.currentTarget as SVGElement).closest('div')?.getBoundingClientRect();
-                          if (rect) {
-                            setHoveredOrgan({
-                              id: vessel.id,
-                              name: `${vessel.name} (${vessel.latinName})`,
-                              x: e.clientX - rect.left + 12,
-                              y: e.clientY - rect.top - 10
-                            });
-                          }
-                        }}
-                        onMouseMove={(e: React.MouseEvent) => {
-                          const rect = (e.currentTarget as SVGElement).closest('div')?.getBoundingClientRect();
-                          if (rect) setHoveredOrgan(prev => prev ? { ...prev, x: e.clientX - rect.left + 12, y: e.clientY - rect.top - 10 } : null);
-                        }}
-                        onMouseLeave={() => setHoveredOrgan(null)}
-                      />
-                    );
-                  })}
-                </g>
-              )}
+              {/* ANATOMICAL LANDMARK DOTS */}
+              <g opacity="0.55" stroke="#22d3ee" strokeWidth="0.8" strokeDasharray="2,2">
+                <circle cx="170" cy="222" r="3" fill="#22d3ee" fillOpacity="0.5"
+                  onMouseEnter={() => setHoveredLandmark('Costal Margin')}
+                  onMouseLeave={() => setHoveredLandmark(null)}
+                  style={{ cursor: 'pointer' }}
+                />
+                <circle cx="170" cy="262" r="3" fill="#22d3ee" fillOpacity="0.5"
+                  onMouseEnter={() => setHoveredLandmark('Umbilicus')}
+                  onMouseLeave={() => setHoveredLandmark(null)}
+                  style={{ cursor: 'pointer' }}
+                />
+                <circle cx="148" cy="281" r="2.5" fill="#22d3ee" fillOpacity="0.4"
+                  onMouseEnter={() => setHoveredLandmark('Anterior Superior Iliac Spine (ASIS)')}
+                  onMouseLeave={() => setHoveredLandmark(null)}
+                  style={{ cursor: 'pointer' }}
+                />
+                <circle cx="192" cy="281" r="2.5" fill="#22d3ee" fillOpacity="0.4"
+                  onMouseEnter={() => setHoveredLandmark('Anterior Superior Iliac Spine (ASIS)')}
+                  onMouseLeave={() => setHoveredLandmark(null)}
+                  style={{ cursor: 'pointer' }}
+                />
+                <circle cx="170" cy="86"  r="2" fill="#22d3ee" fillOpacity="0.4"
+                  onMouseEnter={() => setHoveredLandmark('Glabella (Forehead midpoint)')}
+                  onMouseLeave={() => setHoveredLandmark(null)}
+                  style={{ cursor: 'pointer' }}
+                />
+              </g>
             </svg>
           </div>
 
           {/* FLOATING HOVER CARD TOOLTIP */}
           {hoveredOrgan && (
             (() => {
-              // Check if this is a muscle
-              const hovMuscle = muscleDatabaseMap.get(hoveredOrgan.id);
-              if (hovMuscle && activeSystemId === 'muscular') {
-                const layerMeta = FASCIAL_LAYER_META[hovMuscle.fascialLayer];
-                return (
-                  <div
-                    style={{ left: hoveredOrgan.x, top: hoveredOrgan.y, pointerEvents: 'none' }}
-                    className="absolute z-30 w-52 bg-slate-950/95 border border-orange-900/60 rounded-xl p-3 shadow-2xl text-[10px] text-slate-300 font-sans backdrop-blur-md"
-                  >
-                    <div className="font-bold text-orange-300 border-b border-slate-900 pb-1 mb-1.5 flex justify-between items-start">
-                      <span>{hoveredOrgan.name}</span>
-                      <span className="text-[7px] px-1 py-0.5 rounded" style={{ color: layerMeta.color, background: layerMeta.color + '20' }}>{hovMuscle.fascialLayer}</span>
-                    </div>
-                    <div className="text-[8px] text-slate-500 italic mb-1">{hovMuscle.latinName}</div>
-                    <div className="flex flex-col gap-1 text-[9px]">
-                      <div><span className="text-slate-500">Action: </span><span className="text-cyan-300">{hovMuscle.primaryAction}</span></div>
-                      <div><span className="text-slate-500">Nerve: </span><span className="text-violet-300">{hovMuscle.innervation.split('(')[0].trim()}</span></div>
-                    </div>
-                  </div>
-                );
-              }
-
-              // Existing bone hover
               const bone = bonesCatalog.find(b => b.id === hoveredOrgan.id);
               if (bone) {
                 return (

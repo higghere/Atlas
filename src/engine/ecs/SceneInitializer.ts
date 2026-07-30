@@ -1855,7 +1855,7 @@ export class SceneInitializer {
       const parentBone = muscle.originBones[0] || 'body';
       const mEntity = registry.createEntity(muscle.id);
       registry.addComponent(mEntity, new TransformComponent(
-        new TRS({ x: 0, y: 0, rotation: 0, scale: 1 }),
+        new TRS({ x: 0, y: 0 }),
         parentBone
       ));
       registry.addComponent(mEntity, muscle);

@@ -8,7 +8,9 @@ export type VascularRegion =
   | 'neck'
   | 'upper_limb'
   | 'thoracic'
+  | 'thorax'
   | 'abdominal'
+  | 'abdomen'
   | 'pelvis'
   | 'lower_limb';
 

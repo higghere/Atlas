@@ -1,0 +1,2 @@
+import { digestiveStructures } from '../data/digestiveData';
+export class DigestiveSearchIndex { static query(term: string) { const q=term.trim().toLowerCase(); if(!q) return digestiveStructures; return digestiveStructures.filter(s=>[s.name,s.latinName,s.category,s.peritonealStatus,s.metadata.function,s.metadata.embryologicalOrigin,...s.metadata.aliases,...s.adjacentStructures,...s.compartments].join(' ').toLowerCase().includes(q)); } }
