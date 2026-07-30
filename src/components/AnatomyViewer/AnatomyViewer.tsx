@@ -57,37 +57,17 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
   // Emojis for system filter tabs
   const systemTabs = [
     { id: 'all', icon: '🧍', name: 'Full Body' },
-    { id: 'skeletal', icon: '🦴', name: 'Skeleton' },
-    { id: 'cardiovascular', icon: '🫀', name: 'Vessels' },
-    { id: 'respiratory', icon: '🫁', name: 'Respiratory' },
-    { id: 'digestive', icon: '🍏', name: 'Digestive' },
-    { id: 'renal', icon: '🩸', name: 'Urinary' },
-    { id: 'nervous', icon: '🧠', name: 'Nerves' }
+    { id: 'skeletal', icon: '🦴', name: 'Skeleton' }
   ];
 
   // Auto preset layer states on select tabs
   useEffect(() => {
     if (activeSystemId === 'skeletal') {
-      setOpacitySkin(0.05); setOpacitySkeleton(0.95); setOpacityMuscle(0.0); setOpacityCardio(0.0); setOpacityRespiratory(0.0); setOpacityDigestive(0.0); setOpacityUrinary(0.0); setOpacityNerves(0.0);
-      setShowSkeleton(true); setShowSkin(true); setShowMuscle(false); setShowCardio(false); setShowRespiratory(false);
-    } else if (activeSystemId === 'cardiovascular') {
-      setOpacitySkin(0.05); setOpacitySkeleton(0.1); setOpacityMuscle(0.0); setOpacityCardio(0.95); setOpacityRespiratory(0.15); setOpacityDigestive(0.0); setOpacityUrinary(0.0); setOpacityNerves(0.0);
-      setShowCardio(true); setShowSkeleton(true);
-    } else if (activeSystemId === 'respiratory') {
-      setOpacitySkin(0.05); setOpacitySkeleton(0.15); setOpacityMuscle(0.0); setOpacityCardio(0.2); setOpacityRespiratory(0.95); setOpacityDigestive(0.0); setOpacityUrinary(0.0); setOpacityNerves(0.0);
-      setShowRespiratory(true); setShowSkeleton(true);
-    } else if (activeSystemId === 'digestive') {
-      setOpacitySkin(0.05); setOpacitySkeleton(0.1); setOpacityMuscle(0.0); setOpacityCardio(0.1); setOpacityRespiratory(0.0); setOpacityDigestive(0.95); setOpacityUrinary(0.0); setOpacityNerves(0.0);
-      setShowDigestive(true);
-    } else if (activeSystemId === 'renal') {
-      setOpacitySkin(0.05); setOpacitySkeleton(0.1); setOpacityMuscle(0.0); setOpacityCardio(0.2); setOpacityRespiratory(0.0); setOpacityDigestive(0.0); setOpacityUrinary(0.95); setOpacityNerves(0.0);
-      setShowUrinary(true);
-    } else if (activeSystemId === 'nervous') {
-      setOpacitySkin(0.05); setOpacitySkeleton(0.1); setOpacityMuscle(0.0); setOpacityCardio(0.0); setOpacityRespiratory(0.0); setOpacityDigestive(0.0); setOpacityUrinary(0.0); setOpacityNerves(0.95);
-      setShowNerves(true);
+      setOpacitySkin(0.05); setOpacitySkeleton(0.95);
+      setShowSkeleton(true); setShowSkin(true);
     } else {
-      setOpacitySkin(0.1); setOpacitySkeleton(0.35); setOpacityMuscle(0.0); setOpacityCardio(0.4); setOpacityRespiratory(0.6); setOpacityDigestive(0.5); setOpacityUrinary(0.6); setOpacityNerves(0.3);
-      setShowSkin(true); setShowSkeleton(true); setShowCardio(true); setShowRespiratory(true); setShowDigestive(true); setShowUrinary(true);
+      setOpacitySkin(0.1); setOpacitySkeleton(0.35);
+      setShowSkin(true); setShowSkeleton(true);
     }
   }, [activeSystemId]);
 
@@ -263,19 +243,7 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
           id: bone.id,
           name: bone.name
         }))
-    })),
-    {
-      id: 'visceral-organs',
-      name: '🫀 Visceral Organs',
-      children: [
-        { id: 'brain', name: 'Brain' },
-        { id: 'heart', name: 'Heart' },
-        { id: 'lungs', name: 'Lungs' },
-        { id: 'liver', name: 'Liver' },
-        { id: 'pancreas', name: 'Pancreas' },
-        { id: 'kidney', name: 'Kidneys' }
-      ]
-    }
+    }))
   ];
 
   const filteredTree = organTreeData.map(system => {
@@ -432,23 +400,14 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
           onMouseLeave={handleMouseUp}
           className="flex-1 bg-slate-950/30 relative flex items-center justify-center cursor-grab active:cursor-grabbing"
         >
-          {/* LEFT OVERLAY: 11 OPACITY CONTROLLER SLIDERS */}
+          {/* LEFT OVERLAY: OPACITY CONTROLLER SLIDERS */}
           <div className="absolute top-4 left-4 p-3 bg-slate-900/85 border border-slate-800/60 rounded-xl backdrop-blur-md z-10 flex flex-col gap-2 text-[9px] text-slate-400 w-44 shadow-2xl">
             <div className="font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1 mb-1">
               ANATOMICAL LAYERS
             </div>
             {[
               { label: '1. Skin Envelope', val: opacitySkin, set: setOpacitySkin, show: showSkin, toggle: setShowSkin },
-              { label: '2. Subcutan Fat', val: opacityFat, set: setOpacityFat, show: showFat, toggle: setShowFat },
-              { label: '3. Muscular System', val: opacityMuscle, set: setOpacityMuscle, show: showMuscle, toggle: setShowMuscle },
-              { label: '4. Skeleton Frame', val: opacitySkeleton, set: setOpacitySkeleton, show: showSkeleton, toggle: setShowSkeleton },
-              { label: '5. Cardiovascular', val: opacityCardio, set: setOpacityCardio, show: showCardio, toggle: setShowCardio },
-              { label: '6. Respiratory', val: opacityRespiratory, set: setOpacityRespiratory, show: showRespiratory, toggle: setShowRespiratory },
-              { label: '7. Digestive / Gut', val: opacityDigestive, set: setOpacityDigestive, show: showDigestive, toggle: setShowDigestive },
-              { label: '8. Urinary / Renal', val: opacityUrinary, set: setOpacityUrinary, show: showUrinary, toggle: setShowUrinary },
-              { label: '9. Endocrine', val: opacityEndocrine, set: setOpacityEndocrine, show: showEndocrine, toggle: setShowEndocrine },
-              { label: '10. Lymph Nodes', val: opacityLymphatic, set: setOpacityLymphatic, show: showLymphatic, toggle: setShowLymphatic },
-              { label: '11. Nervous PNS', val: opacityNerves, set: setOpacityNerves, show: showNerves, toggle: setShowNerves }
+              { label: '2. Skeleton Frame', val: opacitySkeleton, set: setOpacitySkeleton, show: showSkeleton, toggle: setShowSkeleton }
             ].map(layer => (
               <div key={layer.label} className="flex flex-col gap-0.5">
                 <div className="flex justify-between font-semibold items-center">
