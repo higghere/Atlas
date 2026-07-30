@@ -6,6 +6,11 @@ import { Registry } from '../../engine/ecs/Registry';
 import { SceneGraph } from '../../engine/scene/SceneNode';
 import { RenderPipeline, BoneComponent } from '../../engine/renderer/RenderPipeline';
 import { SceneInitializer } from '../../engine/ecs/SceneInitializer';
+import { SkeletalInteraction } from '../../atlas/skeleton/interaction/interaction';
+import { SkeletalSearchIndex } from '../../atlas/skeleton/search/search';
+import { SkeletalValidator } from '../../atlas/skeleton/validation/validation';
+import { clinicalBoneDatabase } from '../../atlas/skeleton/metadata/boneMetadata';
+import { JointComponent } from '../../atlas/skeleton/joints/joints';
 
 interface AnatomyViewerProps {
   organs: Record<string, OrganNode>;
@@ -53,6 +58,9 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
   const [treeSearch, setTreeSearch] = useState('');
   const [view, setView] = useState<string>('anterior');
   const [hoveredLandmark, setHoveredLandmark] = useState<string | null>(null);
+  const [isolatedBoneId, setIsolatedBoneId] = useState<string | null>(null);
+  const [hiddenBones, setHiddenBones] = useState<Set<string>>(new Set());
+  const [showAdjacentOnly, setShowAdjacentOnly] = useState(false);
 
   // Emojis for system filter tabs
   const systemTabs = [
@@ -139,6 +147,38 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
       organs
     );
   }, [renderPipeline, zoom, view, visibleLayers, layerOpacities, selectedOrganId, hoveredOrgan?.id, organs]);
+
+  const adjacentBones = useMemo(() => {
+    if (!selectedOrganId) return [];
+    return SkeletalInteraction.getAdjacentBones(registry, selectedOrganId);
+  }, [selectedOrganId, registry]);
+
+  const processedNodes = useMemo(() => {
+    return renderableNodes.map(node => {
+      const clone = { ...node };
+      
+      // Hide filter
+      if (hiddenBones.has(clone.entityId)) {
+        clone.visible = false;
+        clone.opacity = 0;
+      }
+
+      // Isolate filter
+      if (isolatedBoneId) {
+        if (clone.entityId === isolatedBoneId) {
+          // Keep isolated bone visible
+        } else if (showAdjacentOnly && adjacentBones.includes(clone.entityId)) {
+          // Dim adjacent bones
+          clone.opacity *= 0.25;
+        } else {
+          clone.visible = false;
+          clone.opacity = 0;
+        }
+      }
+
+      return clone;
+    }).filter(n => n.visible && n.opacity > 0);
+  }, [renderableNodes, hiddenBones, isolatedBoneId, showAdjacentOnly, adjacentBones]);
 
   // Dynamic selection and pathology highlighting logic
   const isHighlighted = (id: string) => {
@@ -247,12 +287,20 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
     }))
   ];
 
-  const filteredTree = organTreeData.map(system => {
-    const matchingChildren = system.children.filter(child =>
-      child.name.toLowerCase().includes(treeSearch.toLowerCase())
-    );
-    return { ...system, children: matchingChildren };
-  }).filter(system => system.children.length > 0 || system.name.toLowerCase().includes(treeSearch.toLowerCase()));
+  const filteredTree = useMemo(() => {
+    if (!treeSearch.trim()) {
+      return organTreeData;
+    }
+    const matchedBones = SkeletalSearchIndex.query(registry, treeSearch);
+    const matchedIds = new Set(matchedBones.map(b => b.id));
+
+    return organTreeData.map(system => {
+      const matchingChildren = system.children.filter(child =>
+        matchedIds.has(child.id) || child.name.toLowerCase().includes(treeSearch.toLowerCase())
+      );
+      return { ...system, children: matchingChildren };
+    }).filter(system => system.children.length > 0);
+  }, [organTreeData, treeSearch, registry]);
 
   const handleOrganHover = (e: React.MouseEvent, id: string) => {
     const bounds = viewportRef.current?.getBoundingClientRect();
@@ -320,14 +368,113 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
               const boneComp = registry.getComponent<BoneComponent>(selectedOrganId, 'BoneComponent');
               if (boneComp) {
                 const desc = bonesCatalog.find(b => b.id === selectedOrganId)?.description || '';
+                const clinical = clinicalBoneDatabase[selectedOrganId];
+                
+                // Query joint entities connecting this bone
+                const joints = registry.query(['JointComponent']);
+                const connectedJoints: JointComponent[] = [];
+                for (const jId of joints) {
+                  const jComp = registry.getComponent<JointComponent>(jId, 'JointComponent');
+                  if (jComp && jComp.connectedBones.includes(selectedOrganId)) {
+                    connectedJoints.push(jComp);
+                  }
+                }
+
+                const isIsolated = isolatedBoneId === selectedOrganId;
+                const isHidden = hiddenBones.has(selectedOrganId);
+
                 return (
-                  <div className="text-[10px] text-slate-300 flex flex-col gap-2 bg-slate-950/40 p-2.5 rounded border border-slate-900 max-h-64 overflow-y-auto">
-                    <div className="font-bold text-cyan-400 text-xs">{boneComp.displayName}</div>
-                    <div className="text-[8px] text-slate-500 uppercase font-semibold tracking-wider">
-                      {boneComp.latinName} | Region: {boneComp.bodyRegion}
+                  <div className="text-[10px] text-slate-300 flex flex-col gap-2.5 bg-slate-950/40 p-2.5 rounded border border-slate-900 max-h-[460px] overflow-y-auto select-text">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="font-bold text-cyan-400 text-xs leading-tight">{boneComp.displayName}</div>
+                        <div className="text-[8px] text-slate-500 uppercase font-semibold tracking-wider">
+                          {boneComp.latinName}
+                        </div>
+                      </div>
+                      <span className="text-[8px] bg-slate-900 border border-slate-800 text-slate-400 px-1 rounded">
+                        {clinical?.boneType || 'flat'}
+                      </span>
                     </div>
-                    <p className="text-slate-400 leading-relaxed mt-0.5">{desc}</p>
-                    
+
+                    {/* Interactive Action Controls */}
+                    <div className="grid grid-cols-3 gap-1.5 border-y border-slate-900 py-1.5">
+                      <button
+                        onClick={() => {
+                          setIsolatedBoneId(isIsolated ? null : selectedOrganId);
+                          setShowAdjacentOnly(true);
+                        }}
+                        className={`py-1 px-1.5 rounded text-[8px] font-bold uppercase transition-all ${
+                          isIsolated ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/50' : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-850'
+                        }`}
+                      >
+                        {isIsolated ? 'Exit Isolate' : 'Isolate'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          const next = new Set(hiddenBones);
+                          if (isHidden) next.delete(selectedOrganId);
+                          else next.add(selectedOrganId);
+                          setHiddenBones(next);
+                        }}
+                        className="py-1 px-1.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-850 text-[8px] font-bold uppercase"
+                      >
+                        {isHidden ? 'Show' : 'Hide'}
+                      </button>
+                      <button
+                        onClick={() => setShowAdjacentOnly(!showAdjacentOnly)}
+                        className={`py-1 px-1.5 rounded text-[8px] font-bold uppercase transition-all ${
+                          showAdjacentOnly ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/50' : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-850'
+                        }`}
+                        disabled={!isIsolated}
+                        title="Show adjacent bones during isolation"
+                      >
+                        + Adjacent
+                      </button>
+                    </div>
+
+                    {/* Description */}
+                    <p className="text-slate-400 leading-relaxed">{desc}</p>
+
+                    {/* Educational / Clinical Details */}
+                    {clinical && (
+                      <div className="flex flex-col gap-2 border-t border-slate-900 pt-2">
+                        <div>
+                          <span className="text-slate-500 font-semibold uppercase text-[8px] block">Arterial Supply:</span>
+                          <span className="text-slate-400 block">{clinical.bloodSupply}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500 font-semibold uppercase text-[8px] block">Innervation:</span>
+                          <span className="text-slate-400 block">{clinical.nerveSupply}</span>
+                        </div>
+                        {clinical.muscleOrigins.length > 0 && (
+                          <div>
+                            <span className="text-slate-500 font-semibold uppercase text-[8px] block">Muscle Origins:</span>
+                            <span className="text-slate-400 block">{clinical.muscleOrigins.join(', ')}</span>
+                          </div>
+                        )}
+                        {clinical.muscleInsertions.length > 0 && (
+                          <div>
+                            <span className="text-slate-500 font-semibold uppercase text-[8px] block">Muscle Insertions:</span>
+                            <span className="text-slate-400 block">{clinical.muscleInsertions.join(', ')}</span>
+                          </div>
+                        )}
+                        <div>
+                          <span className="text-slate-500 font-semibold uppercase text-[8px] block">Clinical Notes:</span>
+                          <span className="text-slate-400 block italic">{clinical.clinicalNotes}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500 font-semibold uppercase text-[8px] block">Fractures:</span>
+                          <span className="text-slate-400 block">{clinical.commonFractures}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500 font-semibold uppercase text-[8px] block">Did You Know?</span>
+                          <span className="text-slate-400 block">{clinical.interestingFacts}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Scene Graph hierarchy links */}
                     <div className="grid grid-cols-2 gap-2 mt-1 border-t border-slate-900 pt-1 text-[8px] text-slate-500">
                       <div>
                         <span className="font-semibold uppercase block">Parent Node:</span>
@@ -348,6 +495,29 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
                       </div>
                     )}
 
+                    {/* Joint Articulations */}
+                    {connectedJoints.length > 0 && (
+                      <div className="mt-1.5 border-t border-slate-900 pt-1.5">
+                        <span className="text-slate-500 font-semibold uppercase text-[8px] block mb-1">Joint Articulations:</span>
+                        <div className="flex flex-col gap-1.5">
+                          {connectedJoints.map((j, i) => (
+                            <div key={i} className="bg-slate-950/40 p-1.5 rounded border border-slate-900">
+                              <div className="font-bold text-slate-300">{j.displayName}</div>
+                              <div className="text-[8px] text-slate-500 uppercase mt-0.5">
+                                Type: {j.jointType} | DoF: {j.degreesOfFreedom}
+                              </div>
+                              {Object.keys(j.rangeOfMotion).length > 0 && (
+                                <div className="text-[8px] text-slate-400 mt-0.5">
+                                  Range: {Object.entries(j.rangeOfMotion).map(([k, v]) => `${k}: ${v?.[0]}° to ${v?.[1]}°`).join(', ')}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Landmarks Anchors coordinates */}
                     {boneComp.landmarks.length > 0 && (
                       <div className="mt-1.5 border-t border-slate-900 pt-1.5">
                         <span className="text-slate-500 font-semibold uppercase text-[8px] block mb-1">Active Landmarks:</span>
@@ -398,24 +568,44 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
               </button>
             ))}
           </div>
-          <select
-            value={view}
-            onChange={(e) => setView(e.target.value)}
-            className="glass-input text-[10px] uppercase font-bold tracking-wider rounded px-2.5 py-1.5 bg-slate-900 border border-slate-800 text-slate-300 hover:text-white cursor-pointer"
-          >
-            {[
-              { id: 'anterior', name: 'Anterior (Front)' },
-              { id: 'posterior', name: 'Posterior (Back)' },
-              { id: 'leftLateral', name: 'Left Lateral (Profile)' },
-              { id: 'rightLateral', name: 'Right Lateral (Profile)' },
-              { id: 'superior', name: 'Superior (Top)' },
-              { id: 'inferior', name: 'Inferior (Bottom)' }
-            ].map(v => (
-              <option key={v.id} value={v.id} className="bg-slate-950 text-slate-300 font-sans text-xs">
-                {v.name}
-              </option>
-            ))}
-          </select>
+          <div className="flex gap-2 items-center">
+            {/* Skeletal Validation Badge */}
+            {(() => {
+              const report = SkeletalValidator.validate(registry);
+              return (
+                <div
+                  title={report.isValid ? "Skeletal system meets all anatomical specifications, digit counts, proportions, and symmetries." : report.errors.join('\n')}
+                  className={`px-2 py-1 rounded text-[8px] font-bold uppercase tracking-wider border flex items-center gap-1.5 ${
+                    report.isValid
+                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                      : 'bg-rose-500/10 border-rose-500/30 text-rose-400'
+                  }`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+                  Skeletal Validation: {report.isValid ? "PASSED" : "FAILED"}
+                </div>
+              );
+            })()}
+
+            <select
+              value={view}
+              onChange={(e) => setView(e.target.value)}
+              className="glass-input text-[10px] uppercase font-bold tracking-wider rounded px-2.5 py-1.5 bg-slate-900 border border-slate-800 text-slate-300 hover:text-white cursor-pointer"
+            >
+              {[
+                { id: 'anterior', name: 'Anterior (Front)' },
+                { id: 'posterior', name: 'Posterior (Back)' },
+                { id: 'leftLateral', name: 'Left Lateral (Profile)' },
+                { id: 'rightLateral', name: 'Right Lateral (Profile)' },
+                { id: 'superior', name: 'Superior (Top)' },
+                { id: 'inferior', name: 'Inferior (Bottom)' }
+              ].map(v => (
+                <option key={v.id} value={v.id} className="bg-slate-950 text-slate-300 font-sans text-xs">
+                  {v.name}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {/* Viewport canvas */}
@@ -577,7 +767,7 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
 
             {/* STACKED RENDERING SYSTEM - ECS DRIVEN SCENE GRAPH GRAPHICS */}
             <g id="layer-ecs-pipeline" className="transition-all duration-300">
-              {renderableNodes.map((node) => (
+              {processedNodes.map((node) => (
                 <path
                   key={node.entityId}
                   d={node.svgPath}

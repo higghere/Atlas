@@ -1,6 +1,7 @@
 import { Registry, Entity } from './Registry';
 import { TransformComponent, TRS } from '../transforms/TRS';
 import { RenderComponent, BoneComponent, Landmark } from '../renderer/RenderPipeline';
+import { majorJointsList, JointComponent } from '../../atlas/skeleton/joints/joints';
 
 export class SceneInitializer {
   public static initialize(registry: Registry): void {
@@ -1835,6 +1836,12 @@ export class SceneInitializer {
           parentBone.children.push(boneId);
         }
       }
+    }
+
+    // Register Joint entities
+    for (const joint of majorJointsList) {
+      const jEntity = registry.createEntity(joint.id);
+      registry.addComponent(jEntity, joint);
     }
   }
 }
