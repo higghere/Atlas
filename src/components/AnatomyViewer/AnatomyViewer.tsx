@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { OrganNode } from '../../types/physiology';
 import { Eye, EyeOff, Search, Network } from 'lucide-react';
+import { bonesCatalog, BoneMetadata } from '../../data/bones';
 
 interface AnatomyViewerProps {
   organs: Record<string, OrganNode>;
@@ -148,8 +149,22 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
     return { fill, filter, opacity, className };
   };
 
+  // Bone selections styles
+  const getBoneStyle = (id: string, defaultStroke = '#64748b', defaultFill = 'none') => {
+    const isSelected = selectedOrganId === id;
+    const highlight = !selectedOrganId || selectedOrganId === id;
+
+    return {
+      stroke: isSelected ? '#22d3ee' : defaultStroke,
+      fill: defaultFill,
+      opacity: highlight ? 1.0 : 0.25,
+      filter: isSelected ? 'url(#glow-selected)' : 'none',
+      className: 'transition-all duration-300 cursor-pointer hover:stroke-white hover:stroke-[2px]'
+    };
+  };
+
   const handleMouseDown = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).tagName === 'path' || (e.target as HTMLElement).tagName === 'circle') return;
+    if ((e.target as HTMLElement).tagName === 'path' || (e.target as HTMLElement).tagName === 'circle' || (e.target as HTMLElement).tagName === 'line') return;
     setIsDragging(true);
     setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
   };
@@ -167,51 +182,41 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
     setIsDragging(false);
   };
 
-  // Directories structure
+  // Dynamically group bones from catalog
+  const skeletalGroups = [
+    { id: 'cranium', name: '💀 Skull - Cranium' },
+    { id: 'face', name: '顎 Skull - Facial Bones' },
+    { id: 'spine', name: '脊 Vertebral Column' },
+    { id: 'thorax', name: '籠 Thoracic Cage' },
+    { id: 'pectoral', name: '肩 Shoulder Girdle' },
+    { id: 'arm', name: '肱 Upper Limbs' },
+    { id: 'hand', name: '掌 Wrist & Hand' },
+    { id: 'pelvis', name: '骨 Pelvic Girdle' },
+    { id: 'leg', name: '股 Lower Limbs' },
+    { id: 'foot', name: '足 Ankle & Foot' }
+  ];
+
   const organTreeData = [
+    ...skeletalGroups.map(group => ({
+      id: `skeletal-${group.id}`,
+      name: group.name,
+      children: bonesCatalog
+        .filter(bone => bone.subCategory === group.id)
+        .map(bone => ({
+          id: bone.id,
+          name: bone.name
+        }))
+    })),
     {
-      id: 'skeletal-group',
-      name: '🦴 Skeletal system',
+      id: 'visceral-organs',
+      name: '🫀 Visceral Organs',
       children: [
-        { id: 'skull', name: 'Skull & Mandible' },
-        { id: 'vertebrae', name: 'Spine Vertebrae' },
-        { id: 'ribcage', name: 'Sternum & 12 Ribs' }
-      ]
-    },
-    {
-      id: 'cardiovascular-group',
-      name: '𫏀 Cardiovascular',
-      children: [
-        { id: 'heart', name: 'Heart & Coronary Vessels' }
-      ]
-    },
-    {
-      id: 'respiratory-group',
-      name: '𫏁 Respiratory',
-      children: [
-        { id: 'lungs', name: 'Lungs & Trachea' }
-      ]
-    },
-    {
-      id: 'digestive-group',
-      name: '🍏 Digestive & Glandular',
-      children: [
-        { id: 'liver', name: 'Liver & Gallbladder' },
-        { id: 'pancreas', name: 'Pancreas Gland' }
-      ]
-    },
-    {
-      id: 'renal-group',
-      name: '🩸 Urinary / Kidney',
-      children: [
-        { id: 'kidney', name: 'Left/Right Kidneys' }
-      ]
-    },
-    {
-      id: 'nervous-group',
-      name: '🧠 Nervous Central/PNS',
-      children: [
-        { id: 'brain', name: 'Cerebral Hemispheres' }
+        { id: 'brain', name: 'Brain' },
+        { id: 'heart', name: 'Heart' },
+        { id: 'lungs', name: 'Lungs' },
+        { id: 'liver', name: 'Liver' },
+        { id: 'pancreas', name: 'Pancreas' },
+        { id: 'kidney', name: 'Kidneys' }
       ]
     }
   ];
@@ -226,9 +231,10 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
   const handleOrganHover = (e: React.MouseEvent, id: string) => {
     const bounds = viewportRef.current?.getBoundingClientRect();
     if (bounds) {
+      const bone = bonesCatalog.find(b => b.id === id);
       setHoveredOrgan({
         id,
-        name: organs[id]?.name || id,
+        name: bone ? bone.name : (organs[id]?.name || id),
         x: e.clientX - bounds.left + 15,
         y: e.clientY - bounds.top + 15
       });
@@ -237,7 +243,7 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 h-full">
-      {/* 1. LEFT COLUMN: DIRECTORY TREE SEARCH */}
+      {/* 1. LEFT COLUMN: DIRECTORY TREE SEARCH & INSPECTOR */}
       <div className="lg:col-span-3 glass-panel p-3 flex flex-col h-full overflow-hidden select-none">
         <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1.5">
           <Network className="w-4 h-4 text-medical-400" />
@@ -253,7 +259,7 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
           />
           <Search className="w-4 h-4 text-slate-500 absolute left-2.5" />
         </div>
-        <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-2">
+        <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-2 min-h-0">
           {filteredTree.map(sys => (
             <div key={sys.id} className="text-xs">
               <div className="font-bold text-slate-400 bg-slate-950/20 px-2 py-1 rounded">
@@ -276,6 +282,58 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
               </div>
             </div>
           ))}
+        </div>
+
+        {/* Selected Anatomical Element Inspector */}
+        <div className="border-t border-slate-900 mt-3 pt-3 flex flex-col gap-2 shrink-0">
+          <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+            Anatomical Inspector
+          </h4>
+          {selectedOrganId ? (
+            (() => {
+              const selectedBone = bonesCatalog.find(b => b.id === selectedOrganId);
+              if (selectedBone) {
+                return (
+                  <div className="text-[10px] text-slate-300 flex flex-col gap-1.5 bg-slate-950/40 p-2.5 rounded border border-slate-900 max-h-52 overflow-y-auto">
+                    <div className="font-bold text-cyan-400 text-xs">{selectedBone.name}</div>
+                    <div className="text-[8px] text-slate-500 uppercase font-semibold">
+                      {selectedBone.category} / {selectedBone.subCategory}
+                    </div>
+                    <p className="text-slate-400 leading-relaxed mt-0.5">{selectedBone.description}</p>
+                    {selectedBone.joints.length > 0 && (
+                      <div className="mt-1">
+                        <span className="text-slate-500 font-semibold uppercase text-[8px]">Articulations:</span>
+                        <ul className="list-disc list-inside text-slate-400 mt-0.5 flex flex-col gap-0.5">
+                          {selectedBone.joints.map((joint, i) => (
+                            <li key={i}>{joint}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+              const selectedOrgan = organs[selectedOrganId];
+              if (selectedOrgan) {
+                return (
+                  <div className="text-[10px] text-slate-300 flex flex-col gap-1.5 bg-slate-950/40 p-2.5 rounded border border-slate-900">
+                    <div className="font-bold text-medical-400 text-xs">{selectedOrgan.name}</div>
+                    <div className="text-[8px] text-slate-500 uppercase font-semibold">
+                      Visceral Organ
+                    </div>
+                    <div>Health: <strong className="text-emerald-400">{selectedOrgan.temporary.health.toFixed(0)}%</strong></div>
+                    <div>Perfusion: <strong>{selectedOrgan.temporary.perfusion.toFixed(0)}%</strong></div>
+                    <div>Oxygenation: <strong>{selectedOrgan.temporary.oxygenation.toFixed(0)}%</strong></div>
+                  </div>
+                );
+              }
+              return <div className="text-slate-500 text-xs italic">Unknown element.</div>;
+            })()
+          ) : (
+            <div className="text-slate-500 text-[10px] italic bg-slate-950/20 p-2.5 rounded border border-slate-900/40 text-center">
+              Select any bone or organ to inspect its anatomy.
+            </div>
+          )}
         </div>
       </div>
 
@@ -475,19 +533,15 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
               </radialGradient>
             </defs>
 
-            {/* STACKED RENDERING SYSTEM - FROM DEEPEST (FIRST) TO SUPERFICIAL (LAST) - (Point 2, 5) */}
+            {/* STACKED RENDERING SYSTEM - FROM DEEPEST (FIRST) TO SUPERFICIAL (LAST) */}
 
             {/* A. ENDOCRINE LAYER (Thyroid, Pancreas & Adrenals - Point 12) */}
             {showEndocrine && (
               <g id="layer-endocrine" opacity={opacityEndocrine} className="transition-all duration-300">
-                {/* Thyroid butterfly gland wrapping trachea */}
                 <path id="thyroid" d="M -8 -163 C -10 -168, 10 -168, 8 -163 C 12 -155, -12 -155, -8 -163 Z" fill="#b91c1c" stroke="#991b1b" strokeWidth="1" />
-
-                {/* Adrenal pyramidal caps resting on kidneys */}
                 <path id="adrenal-left" d="M 17 -48 Q 21 -52, 23 -47 Z" fill="#eab308" stroke="#ca8a04" strokeWidth="0.8" />
                 <path id="adrenal-right" d="M -17 -42 Q -21 -46, -23 -41 Z" fill="#eab308" stroke="#ca8a04" strokeWidth="0.8" />
 
-                {/* Pancreas long curved gland (Point 12) */}
                 <g
                   id="organ-pancreas"
                   onClick={(e) => { e.stopPropagation(); onSelectOrgan('pancreas'); }}
@@ -511,10 +565,7 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
             {/* B. URINARY LAYER (Retroperitoneal kidneys & Ureters - Point 10) */}
             {showUrinary && (
               <g id="layer-urinary" opacity={opacityUrinary} className="transition-all duration-300">
-                {/* Ureters drainage paths */}
                 <path id="ureters" d="M -18 -30 L -7 40 M 18 -35 L 7 40" stroke="#10b981" strokeWidth="1" fill="none" opacity="0.5" />
-
-                {/* Bladder inside pelvic bone arches (Point 3) */}
                 <path
                   id="organ-bladder"
                   d="M -10 38 C -16 38, -16 52, 0 58 C 16 52, 16 38, 10 38 Z"
@@ -525,9 +576,7 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
                   opacity={isHighlighted('bladder') ? 0.95 : 0.2}
                 />
 
-                {/* Kidneys (Retroperitoneal, left slightly higher - Point 2, 11) */}
                 <g id="organ-kidney" className="cursor-pointer">
-                  {/* Left Kidney with Hilum detail */}
                   <path
                     role="button"
                     tabIndex={0}
@@ -540,7 +589,6 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
                     d="M 16 -46 C 20 -50, 26 -40, 24 -28 C 22 -22, 18 -26, 16 -30 T 16 -46 Z"
                     {...getOrganStateStyle('kidney', 'url(#grad-kidneys)')}
                   />
-                  {/* Right Kidney with Hilum */}
                   <path
                     role="button"
                     tabIndex={0}
@@ -557,13 +605,10 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
               </g>
             )}
 
-            {/* C. DIGESTIVE LAYER (Liver covers stomach, pancreas overlap - Point 3, 10) */}
+            {/* C. DIGESTIVE LAYER (Gut) */}
             {showDigestive && (
               <g id="layer-digestive" opacity={opacityDigestive} className="transition-all duration-300">
-                {/* Esophagus (Food pipe) */}
                 <path id="esophagus" d="M 0 -170 L 0 -54" stroke="#a21caf" strokeWidth="1.5" fill="none" opacity="0.4" />
-
-                {/* Stomach (J-curve) */}
                 <path
                   id="organ-stomach"
                   d="M 3 -52 C 10 -52, 25 -55, 27 -42 C 29 -30, 20 -18, 10 -22 C 1 -25, 1 -40, 3 -52 Z"
@@ -573,8 +618,6 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
                   filter="url(#organ-shadow)"
                   opacity={isHighlighted('stomach') ? 1.0 : 0.25}
                 />
-
-                {/* Large Intestine (Segmented colon framing abdominal base - Point 12) */}
                 <path
                   id="organ-colon"
                   d="M -26 -14 L -26 -28 Q -26 -33, -16 -33 Q 0 -33, 16 -34 Q 22 -34, 22 -14 L 22 18 Q 22 28, 10 30 Q 0 32, -8 30 Z"
@@ -585,8 +628,6 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
                   fill="none"
                   opacity={isHighlighted('colon') ? 0.85 : 0.22}
                 />
-
-                {/* Small Intestine convoluted loop cluster */}
                 <path
                   id="organ-small-intestine"
                   d="M -16 -12 C -22 -4, -18 8, -14 12 C -8 12, -12 -4, -8 -8 C -4 -12, 0 8, 4 12 C 8 12, 4 -4, 8 -8 C 12 -12, 16 8, 16 16 C 16 20, -16 20, -16 -12 Z"
@@ -596,8 +637,6 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
                   filter="url(#organ-shadow)"
                   opacity={isHighlighted('small-intestine') ? 0.9 : 0.25}
                 />
-
-                {/* Liver (Right dominance, large left lobe overlap - Point 2, 11) */}
                 <g
                   id="organ-liver"
                   onClick={(e) => { e.stopPropagation(); onSelectOrgan('liver'); }}
@@ -610,16 +649,12 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
                   aria-label="Select Liver"
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); onSelectOrgan('liver'); } }}
                 >
-                  {/* Medically accurate lobed liver */}
                   <path
                     d="M -34 -52 C -32 -55, 4 -52, 8 -40 C 8 -30, -8 -22, -32 -35 C -38 -39, -36 -49, -34 -52 Z"
                     {...getOrganStateStyle('liver', 'url(#grad-liver)')}
                   />
-                  {/* Falciform dividing line */}
                   <path d="M -14 -51 Q -16 -41, -12 -28" stroke="#854d0e" strokeWidth="0.8" fill="none" opacity="0.6" />
                 </g>
-
-                {/* Gallbladder (Green sac under right lobe - Point 12) */}
                 <path
                   id="organ-gallbladder"
                   d="M -18 -34 C -20 -34, -21 -29, -17 -26 C -13 -23, -15 -32, -18 -34 Z"
@@ -631,7 +666,7 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
               </g>
             )}
 
-            {/* D. CARDIOVASCULAR SYSTEM (Tapered vessels trunk) */}
+            {/* D. CARDIOVASCULAR SYSTEM */}
             {showCardio && (
               <g id="layer-cardio" opacity={opacityCardio} fill="none" className="transition-all duration-300">
                 <path id="aorta" d="M -3 -88 C -14 -112, 10 -112, 3 -88 L 1 12" stroke="#ef4444" strokeWidth="3" />
@@ -670,7 +705,7 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
               </g>
             )}
 
-            {/* F. RESPIRATORY LAYER (Trachea & Lungs) */}
+            {/* F. RESPIRATORY LAYER */}
             {showRespiratory && (
               <g id="layer-respiratory" opacity={opacityRespiratory} fill="none" className="transition-all duration-300">
                 <path id="trachea" d="M 0 -170 L 0 -105" stroke="#38bdf8" strokeWidth="2.2" strokeDasharray="1.2,1.2" />
@@ -752,71 +787,448 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
             {/* H. SKELETAL LAYER (Fitted on top of organs to obscure them - Rule 5) */}
             {showSkeleton && (
               <g id="layer-skeleton" opacity={opacitySkeleton} stroke="#64748b" strokeWidth="1.2" fill="none" className="transition-all duration-300">
-                {/* Skull */}
-                <g fill="#1e293b" strokeWidth="1.2">
-                  <path d="M -15 -185 C -25 -202, 25 -202, 15 -185 C 22 -172, -22 -172, -15 -185 Z" />
-                  <ellipse cx="-6" cy="-178" rx="4" ry="5.5" fill="#020617" stroke="#334155" strokeWidth="0.8" />
-                  <ellipse cx="6" cy="-178" rx="4" ry="5.5" fill="#020617" stroke="#334155" strokeWidth="0.8" />
-                  <polygon points="0,-172 -3,-166 3,-166" fill="#020617" stroke="#334155" strokeWidth="0.5" />
-                  <path d="M -11 -164 L -9 -154 C -7 -151, 7 -151, 9 -154 L 11 -164 Z" fill="#1e293b" />
+                
+                {/* Skull Cranium & Facial Bones */}
+                <g strokeWidth="1.2">
+                  {/* Frontal Bone */}
+                  <path
+                    d="M -15 -185 C -25 -202, 0 -210, 0 -192 C 0 -185, -15 -185, -15 -185"
+                    onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-frontal'); }}
+                    onMouseEnter={(e) => handleOrganHover(e, 'bone-frontal')}
+                    onMouseMove={(e) => handleOrganHover(e, 'bone-frontal')}
+                    onMouseLeave={() => setHoveredOrgan(null)}
+                    {...getBoneStyle('bone-frontal', '#64748b', '#1e293b')}
+                  />
+                  {/* Parietal Bones */}
+                  <path
+                    d="M 0 -210 C 25 -202, 15 -185, 0 -192"
+                    onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-parietal'); }}
+                    onMouseEnter={(e) => handleOrganHover(e, 'bone-parietal')}
+                    onMouseMove={(e) => handleOrganHover(e, 'bone-parietal')}
+                    onMouseLeave={() => setHoveredOrgan(null)}
+                    {...getBoneStyle('bone-parietal', '#64748b', '#1e293b')}
+                  />
+                  {/* Mandible (Jawbone) */}
+                  <path
+                    d="M -11 -164 L -9 -154 C -7 -151, 7 -151, 9 -154 L 11 -164 Z"
+                    onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-mandible'); }}
+                    onMouseEnter={(e) => handleOrganHover(e, 'bone-mandible')}
+                    onMouseMove={(e) => handleOrganHover(e, 'bone-mandible')}
+                    onMouseLeave={() => setHoveredOrgan(null)}
+                    {...getBoneStyle('bone-mandible', '#64748b', '#1e293b')}
+                  />
+                  {/* Zygomatic Bones (Orbits) */}
+                  <ellipse
+                    cx="-6" cy="-178" rx="4" ry="5.5"
+                    onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-zygomatic'); }}
+                    onMouseEnter={(e) => handleOrganHover(e, 'bone-zygomatic')}
+                    onMouseMove={(e) => handleOrganHover(e, 'bone-zygomatic')}
+                    onMouseLeave={() => setHoveredOrgan(null)}
+                    {...getBoneStyle('bone-zygomatic', '#64748b', '#020617')}
+                  />
+                  <ellipse
+                    cx="6" cy="-178" rx="4" ry="5.5"
+                    onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-zygomatic'); }}
+                    onMouseEnter={(e) => handleOrganHover(e, 'bone-zygomatic')}
+                    onMouseMove={(e) => handleOrganHover(e, 'bone-zygomatic')}
+                    onMouseLeave={() => setHoveredOrgan(null)}
+                    {...getBoneStyle('bone-zygomatic', '#64748b', '#020617')}
+                  />
+                  {/* Nasal Cavity / Vomer */}
+                  <polygon
+                    points="0,-172 -3,-166 3,-166"
+                    onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-vomer'); }}
+                    onMouseEnter={(e) => handleOrganHover(e, 'bone-vomer')}
+                    onMouseMove={(e) => handleOrganHover(e, 'bone-vomer')}
+                    onMouseLeave={() => setHoveredOrgan(null)}
+                    {...getBoneStyle('bone-vomer', '#64748b', '#020617')}
+                  />
                 </g>
 
                 {/* Spine Vertebrae segments */}
-                <g fill="#1e293b" strokeWidth="0.8">
-                  {[-148, -142, -136].map((y, i) => <rect key={`c-${i}`} x="-2.5" y={y} width="5" height="4.5" rx="1" />)}
-                  {[-130, -124, -118, -112, -106, -100, -94, -88, -82, -76, -70, -64].map((y, i) => <rect key={`t-${i}`} x="-3.5" y={y} width="7" height="4.5" rx="1" />)}
-                  {[-58, -52, -46, -40, -34].map((y, i) => <rect key={`l-${i}`} x="-4.5" y={y} width="9" height="5" rx="1" />)}
+                <g strokeWidth="0.8">
+                  {/* Cervical (C1-C7) */}
+                  {[-148, -142, -136].map((y, i) => (
+                    <rect
+                      key={`c-${i}`} x="-2.5" y={y} width="5" height="4.5" rx="1"
+                      onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-cervical'); }}
+                      onMouseEnter={(e) => handleOrganHover(e, 'bone-cervical')}
+                      onMouseMove={(e) => handleOrganHover(e, 'bone-cervical')}
+                      onMouseLeave={() => setHoveredOrgan(null)}
+                      {...getBoneStyle('bone-cervical', '#64748b', '#1e293b')}
+                    />
+                  ))}
+                  {/* Thoracic (T1-T12) */}
+                  {[-130, -124, -118, -112, -106, -100, -94, -88, -82, -76, -70, -64].map((y, i) => (
+                    <rect
+                      key={`t-${i}`} x="-3.5" y={y} width="7" height="4.5" rx="1"
+                      onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-thoracic'); }}
+                      onMouseEnter={(e) => handleOrganHover(e, 'bone-thoracic')}
+                      onMouseMove={(e) => handleOrganHover(e, 'bone-thoracic')}
+                      onMouseLeave={() => setHoveredOrgan(null)}
+                      {...getBoneStyle('bone-thoracic', '#64748b', '#1e293b')}
+                    />
+                  ))}
+                  {/* Lumbar (L1-L5) */}
+                  {[-58, -52, -46, -40, -34].map((y, i) => (
+                    <rect
+                      key={`l-${i}`} x="-4.5" y={y} width="9" height="5" rx="1"
+                      onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-lumbar'); }}
+                      onMouseEnter={(e) => handleOrganHover(e, 'bone-lumbar')}
+                      onMouseMove={(e) => handleOrganHover(e, 'bone-lumbar')}
+                      onMouseLeave={() => setHoveredOrgan(null)}
+                      {...getBoneStyle('bone-lumbar', '#64748b', '#1e293b')}
+                    />
+                  ))}
                 </g>
 
-                {/* Sternum body */}
-                <rect x="-2" y="-120" width="4.5" height="52" rx="1" fill="#1e293b" />
-                {/* Clavicles */}
-                <path d="M -4 -122 Q -22 -120, -42 -114" />
-                <path d="M 4 -122 Q 22 -120, 42 -114" />
+                {/* Sternum Subdivisions */}
+                {/* Manubrium */}
+                <rect
+                  x="-2" y="-120" width="4.5" height="15" rx="0.5"
+                  onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-sternum-manubrium'); }}
+                  onMouseEnter={(e) => handleOrganHover(e, 'bone-sternum-manubrium')}
+                  onMouseMove={(e) => handleOrganHover(e, 'bone-sternum-manubrium')}
+                  onMouseLeave={() => setHoveredOrgan(null)}
+                  {...getBoneStyle('bone-sternum-manubrium', '#64748b', '#1e293b')}
+                />
+                {/* Sternum Body */}
+                <rect
+                  x="-2" y="-105" width="4.5" height="30" rx="0.5"
+                  onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-sternum-body'); }}
+                  onMouseEnter={(e) => handleOrganHover(e, 'bone-sternum-body')}
+                  onMouseMove={(e) => handleOrganHover(e, 'bone-sternum-body')}
+                  onMouseLeave={() => setHoveredOrgan(null)}
+                  {...getBoneStyle('bone-sternum-body', '#64748b', '#1e293b')}
+                />
+                {/* Xiphoid Process */}
+                <rect
+                  x="-1" y="-75" width="2.5" height="7" rx="0.5"
+                  onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-sternum-xiphoid'); }}
+                  onMouseEnter={(e) => handleOrganHover(e, 'bone-sternum-xiphoid')}
+                  onMouseMove={(e) => handleOrganHover(e, 'bone-sternum-xiphoid')}
+                  onMouseLeave={() => setHoveredOrgan(null)}
+                  {...getBoneStyle('bone-sternum-xiphoid', '#64748b', '#1e293b')}
+                />
 
-                {/* 12 Rib Pairs wrapping thoracic cavity (Partially obscures organs) */}
-                {[-115, -106, -97, -88, -79, -70, -61, -52, -43, -34, -25, -16].map((y, idx) => (
-                  <g key={idx}>
-                    <path d={`M 0 ${y} Q ${-28 - idx * 1.6} ${y + 4}, -3 ${y + 16}`} />
-                    <path d={`M 0 ${y} Q ${27 + idx * 1.6} ${y + 4}, 3 ${y + 16}`} />
+                {/* Clavicles */}
+                <path
+                  d="M -4 -122 Q -22 -120, -42 -114"
+                  onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-clavicle'); }}
+                  onMouseEnter={(e) => handleOrganHover(e, 'bone-clavicle')}
+                  onMouseMove={(e) => handleOrganHover(e, 'bone-clavicle')}
+                  onMouseLeave={() => setHoveredOrgan(null)}
+                  {...getBoneStyle('bone-clavicle')}
+                />
+                <path
+                  d="M 4 -122 Q 22 -120, 42 -114"
+                  onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-clavicle'); }}
+                  onMouseEnter={(e) => handleOrganHover(e, 'bone-clavicle')}
+                  onMouseMove={(e) => handleOrganHover(e, 'bone-clavicle')}
+                  onMouseLeave={() => setHoveredOrgan(null)}
+                  {...getBoneStyle('bone-clavicle')}
+                />
+
+                {/* 12 Rib Pairs wrapping thoracic cavity */}
+                {/* True Ribs (1-7) */}
+                {[-115, -106, -97, -88, -79, -70, -61].map((y, idx) => (
+                  <g key={`true-${idx}`}>
+                    <path
+                      d={`M 0 ${y} Q ${-28 - idx * 1.6} ${y + 4}, -3 ${y + 16}`}
+                      onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-ribs-true'); }}
+                      onMouseEnter={(e) => handleOrganHover(e, 'bone-ribs-true')}
+                      onMouseMove={(e) => handleOrganHover(e, 'bone-ribs-true')}
+                      onMouseLeave={() => setHoveredOrgan(null)}
+                      {...getBoneStyle('bone-ribs-true')}
+                    />
+                    <path
+                      d={`M 0 ${y} Q ${27 + idx * 1.6} ${y + 4}, 3 ${y + 16}`}
+                      onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-ribs-true'); }}
+                      onMouseEnter={(e) => handleOrganHover(e, 'bone-ribs-true')}
+                      onMouseMove={(e) => handleOrganHover(e, 'bone-ribs-true')}
+                      onMouseLeave={() => setHoveredOrgan(null)}
+                      {...getBoneStyle('bone-ribs-true')}
+                    />
+                  </g>
+                ))}
+                {/* False Ribs (8-10) */}
+                {[-52, -43, -34].map((y, idx) => (
+                  <g key={`false-${idx}`}>
+                    <path
+                      d={`M 0 ${y} Q ${-38 - idx * 1.6} ${y + 4}, -3 ${y + 16}`}
+                      onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-ribs-false'); }}
+                      onMouseEnter={(e) => handleOrganHover(e, 'bone-ribs-false')}
+                      onMouseMove={(e) => handleOrganHover(e, 'bone-ribs-false')}
+                      onMouseLeave={() => setHoveredOrgan(null)}
+                      {...getBoneStyle('bone-ribs-false')}
+                    />
+                    <path
+                      d={`M 0 ${y} Q ${37 + idx * 1.6} ${y + 4}, 3 ${y + 16}`}
+                      onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-ribs-false'); }}
+                      onMouseEnter={(e) => handleOrganHover(e, 'bone-ribs-false')}
+                      onMouseMove={(e) => handleOrganHover(e, 'bone-ribs-false')}
+                      onMouseLeave={() => setHoveredOrgan(null)}
+                      {...getBoneStyle('bone-ribs-false')}
+                    />
+                  </g>
+                ))}
+                {/* Floating Ribs (11-12) */}
+                {[-25, -16].map((y, idx) => (
+                  <g key={`float-${idx}`}>
+                    <path
+                      d={`M 0 ${y} Q ${-42 - idx * 1.6} ${y + 4}, -3 ${y + 12}`}
+                      onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-ribs-floating'); }}
+                      onMouseEnter={(e) => handleOrganHover(e, 'bone-ribs-floating')}
+                      onMouseMove={(e) => handleOrganHover(e, 'bone-ribs-floating')}
+                      onMouseLeave={() => setHoveredOrgan(null)}
+                      {...getBoneStyle('bone-ribs-floating')}
+                    />
+                    <path
+                      d={`M 0 ${y} Q ${42 + idx * 1.6} ${y + 4}, 3 ${y + 12}`}
+                      onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-ribs-floating'); }}
+                      onMouseEnter={(e) => handleOrganHover(e, 'bone-ribs-floating')}
+                      onMouseMove={(e) => handleOrganHover(e, 'bone-ribs-floating')}
+                      onMouseLeave={() => setHoveredOrgan(null)}
+                      {...getBoneStyle('bone-ribs-floating')}
+                    />
                   </g>
                 ))}
 
                 {/* Scapulae shoulder blades */}
-                <path d="M -42 -114 L -28 -88 L -42 -92 Z" fill="#0f172a" />
-                <path d="M 42 -114 L 28 -88 L 42 -92 Z" fill="#0f172a" />
+                <path
+                  d="M -42 -114 L -28 -88 L -42 -92 Z"
+                  onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-scapula'); }}
+                  onMouseEnter={(e) => handleOrganHover(e, 'bone-scapula')}
+                  onMouseMove={(e) => handleOrganHover(e, 'bone-scapula')}
+                  onMouseLeave={() => setHoveredOrgan(null)}
+                  {...getBoneStyle('bone-scapula', '#64748b', '#0f172a')}
+                />
+                <path
+                  d="M 42 -114 L 28 -88 L 42 -92 Z"
+                  onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-scapula'); }}
+                  onMouseEnter={(e) => handleOrganHover(e, 'bone-scapula')}
+                  onMouseMove={(e) => handleOrganHover(e, 'bone-scapula')}
+                  onMouseLeave={() => setHoveredOrgan(null)}
+                  {...getBoneStyle('bone-scapula', '#64748b', '#0f172a')}
+                />
 
-                {/* Pelvis hip bones containing pelvic bladder */}
-                <g fill="#1e293b">
-                  <path d="M -28 -24 C -44 -24, -46 -2, -20 8 C -16 8, -20 -6, -24 -18 Z" />
-                  <path d="M 26 -24 C 44 -24, 46 -2, 20 8 C 16 8, 20 -6, 24 -18 Z" />
-                  <path d="M -7 -22 L 7 -22 L 4 4 L 0 12 L -4 4 Z" fill="#0f172a" />
-                </g>
+                {/* Pelvis wings (Ilium) */}
+                <path
+                  d="M -28 -24 C -44 -24, -46 -2, -20 8 C -16 8, -20 -6, -24 -18 Z"
+                  onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-ilium'); }}
+                  onMouseEnter={(e) => handleOrganHover(e, 'bone-ilium')}
+                  onMouseMove={(e) => handleOrganHover(e, 'bone-ilium')}
+                  onMouseLeave={() => setHoveredOrgan(null)}
+                  {...getBoneStyle('bone-ilium', '#64748b', '#1e293b')}
+                />
+                <path
+                  d="M 26 -24 C 44 -24, 46 -2, 20 8 C 16 8, 20 -6, 24 -18 Z"
+                  onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-ilium'); }}
+                  onMouseEnter={(e) => handleOrganHover(e, 'bone-ilium')}
+                  onMouseMove={(e) => handleOrganHover(e, 'bone-ilium')}
+                  onMouseLeave={() => setHoveredOrgan(null)}
+                  {...getBoneStyle('bone-ilium', '#64748b', '#1e293b')}
+                />
+                {/* Pubis & Ischium base */}
+                <path
+                  d="M -7 -22 L 7 -22 L 4 4 L 0 12 L -4 4 Z"
+                  onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-pubis'); }}
+                  onMouseEnter={(e) => handleOrganHover(e, 'bone-pubis')}
+                  onMouseMove={(e) => handleOrganHover(e, 'bone-pubis')}
+                  onMouseLeave={() => setHoveredOrgan(null)}
+                  {...getBoneStyle('bone-pubis', '#64748b', '#0f172a')}
+                />
+                {/* Sacrum Spine connector */}
+                <path
+                  d="M -4.5 -28 L 4.5 -28 L 3 -22 L 0 -18 L -3 -22 Z"
+                  onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-sacrum'); }}
+                  onMouseEnter={(e) => handleOrganHover(e, 'bone-sacrum')}
+                  onMouseMove={(e) => handleOrganHover(e, 'bone-sacrum')}
+                  onMouseLeave={() => setHoveredOrgan(null)}
+                  {...getBoneStyle('bone-sacrum', '#64748b', '#1e293b')}
+                />
 
-                {/* Upper/Lower extremity limbs */}
-                <line x1="-42" y1="-114" x2="-75" y2="-40" strokeWidth="2.8" />
-                {/* Left Forearm: Radius (lateral, thumb) & Ulna (medial, pinky) */}
-                <line x1="-75" y1="-40" x2="-97" y2="28" strokeWidth="1.6" />
-                <line x1="-73" y1="-40" x2="-93" y2="28" strokeWidth="1.6" />
+                {/* Humerus Upper arm bones */}
+                <line
+                  x1="-42" y1="-114" x2="-75" y2="-40"
+                  onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-humerus'); }}
+                  onMouseEnter={(e) => handleOrganHover(e, 'bone-humerus')}
+                  onMouseMove={(e) => handleOrganHover(e, 'bone-humerus')}
+                  onMouseLeave={() => setHoveredOrgan(null)}
+                  {...getBoneStyle('bone-humerus')}
+                  strokeWidth="2.8"
+                />
+                <line
+                  x1="42" y1="-114" x2="75" y2="-40"
+                  onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-humerus'); }}
+                  onMouseEnter={(e) => handleOrganHover(e, 'bone-humerus')}
+                  onMouseMove={(e) => handleOrganHover(e, 'bone-humerus')}
+                  onMouseLeave={() => setHoveredOrgan(null)}
+                  {...getBoneStyle('bone-humerus')}
+                  strokeWidth="2.8"
+                />
 
-                <line x1="42" y1="-114" x2="75" y2="-40" strokeWidth="2.8" />
-                {/* Right Forearm: Radius (lateral, thumb) & Ulna (medial, pinky) */}
-                <line x1="75" y1="-40" x2="97" y2="28" strokeWidth="1.6" />
-                <line x1="73" y1="-40" x2="93" y2="28" strokeWidth="1.6" />
+                {/* Left Forearm: Radius (lateral) & Ulna (medial) */}
+                <line
+                  x1="-75" y1="-40" x2="-97" y2="28"
+                  onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-radius'); }}
+                  onMouseEnter={(e) => handleOrganHover(e, 'bone-radius')}
+                  onMouseMove={(e) => handleOrganHover(e, 'bone-radius')}
+                  onMouseLeave={() => setHoveredOrgan(null)}
+                  {...getBoneStyle('bone-radius')}
+                  strokeWidth="1.6"
+                />
+                <line
+                  x1="-73" y1="-40" x2="-93" y2="28"
+                  onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-ulna'); }}
+                  onMouseEnter={(e) => handleOrganHover(e, 'bone-ulna')}
+                  onMouseMove={(e) => handleOrganHover(e, 'bone-ulna')}
+                  onMouseLeave={() => setHoveredOrgan(null)}
+                  {...getBoneStyle('bone-ulna')}
+                  strokeWidth="1.6"
+                />
 
-                <line x1="-22" y1="4" x2="-35" y2="120" strokeWidth="4.2" /> 
-                <circle cx="-35" cy="125" r="3.2" fill="#475569" stroke="none" /> 
-                <line x1="-35" y1="130" x2="-35" y2="230" strokeWidth="2.8" /> 
-                <line x1="-39" y1="130" x2="-39" y2="230" strokeWidth="0.8" opacity="0.6" /> 
+                {/* Right Forearm: Radius (lateral) & Ulna (medial) */}
+                <line
+                  x1="75" y1="-40" x2="97" y2="28"
+                  onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-radius'); }}
+                  onMouseEnter={(e) => handleOrganHover(e, 'bone-radius')}
+                  onMouseMove={(e) => handleOrganHover(e, 'bone-radius')}
+                  onMouseLeave={() => setHoveredOrgan(null)}
+                  {...getBoneStyle('bone-radius')}
+                  strokeWidth="1.6"
+                />
+                <line
+                  x1="73" y1="-40" x2="93" y2="28"
+                  onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-ulna'); }}
+                  onMouseEnter={(e) => handleOrganHover(e, 'bone-ulna')}
+                  onMouseMove={(e) => handleOrganHover(e, 'bone-ulna')}
+                  onMouseLeave={() => setHoveredOrgan(null)}
+                  {...getBoneStyle('bone-ulna')}
+                  strokeWidth="1.6"
+                />
 
-                <line x1="22" y1="4" x2="35" y2="120" strokeWidth="4.2" />
-                <circle cx="35" cy="125" r="3.2" fill="#475569" stroke="none" />
-                <line x1="35" y1="130" x2="35" y2="230" strokeWidth="2.8" />
-                <line x1="39" y1="130" x2="39" y2="230" strokeWidth="0.8" opacity="0.6" />
+                {/* Hands carpals/metacarpals */}
+                {/* Left Hand */}
+                <circle
+                  cx="-95" cy="32" r="2.5"
+                  onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-carpals'); }}
+                  onMouseEnter={(e) => handleOrganHover(e, 'bone-carpals')}
+                  onMouseMove={(e) => handleOrganHover(e, 'bone-carpals')}
+                  onMouseLeave={() => setHoveredOrgan(null)}
+                  {...getBoneStyle('bone-carpals', '#64748b', '#1e293b')}
+                />
+                <line
+                  x1="-95" y1="34" x2="-97" y2="48"
+                  onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-metacarpals'); }}
+                  onMouseEnter={(e) => handleOrganHover(e, 'bone-metacarpals')}
+                  onMouseMove={(e) => handleOrganHover(e, 'bone-metacarpals')}
+                  onMouseLeave={() => setHoveredOrgan(null)}
+                  {...getBoneStyle('bone-metacarpals')}
+                  strokeWidth="1.2"
+                />
+                {/* Right Hand */}
+                <circle
+                  cx="95" cy="32" r="2.5"
+                  onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-carpals'); }}
+                  onMouseEnter={(e) => handleOrganHover(e, 'bone-carpals')}
+                  onMouseMove={(e) => handleOrganHover(e, 'bone-carpals')}
+                  onMouseLeave={() => setHoveredOrgan(null)}
+                  {...getBoneStyle('bone-carpals', '#64748b', '#1e293b')}
+                />
+                <line
+                  x1="95" y1="34" x2="97" y2="48"
+                  onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-metacarpals'); }}
+                  onMouseEnter={(e) => handleOrganHover(e, 'bone-metacarpals')}
+                  onMouseMove={(e) => handleOrganHover(e, 'bone-metacarpals')}
+                  onMouseLeave={() => setHoveredOrgan(null)}
+                  {...getBoneStyle('bone-metacarpals')}
+                  strokeWidth="1.2"
+                />
+
+                {/* Femur thigh bones */}
+                <line
+                  x1="-22" y1="4" x2="-35" y2="120"
+                  onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-femur'); }}
+                  onMouseEnter={(e) => handleOrganHover(e, 'bone-femur')}
+                  onMouseMove={(e) => handleOrganHover(e, 'bone-femur')}
+                  onMouseLeave={() => setHoveredOrgan(null)}
+                  {...getBoneStyle('bone-femur')}
+                  strokeWidth="4.2"
+                /> 
+                <line
+                  x1="22" y1="4" x2="35" y2="120"
+                  onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-femur'); }}
+                  onMouseEnter={(e) => handleOrganHover(e, 'bone-femur')}
+                  onMouseMove={(e) => handleOrganHover(e, 'bone-femur')}
+                  onMouseLeave={() => setHoveredOrgan(null)}
+                  {...getBoneStyle('bone-femur')}
+                  strokeWidth="4.2"
+                />
+
+                {/* Patella kneecaps */}
+                <circle
+                  cx="-35" cy="125" r="3.2"
+                  onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-patella'); }}
+                  onMouseEnter={(e) => handleOrganHover(e, 'bone-patella')}
+                  onMouseMove={(e) => handleOrganHover(e, 'bone-patella')}
+                  onMouseLeave={() => setHoveredOrgan(null)}
+                  {...getBoneStyle('bone-patella', '#64748b', '#475569')}
+                /> 
+                <circle
+                  cx="35" cy="125" r="3.2"
+                  onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-patella'); }}
+                  onMouseEnter={(e) => handleOrganHover(e, 'bone-patella')}
+                  onMouseMove={(e) => handleOrganHover(e, 'bone-patella')}
+                  onMouseLeave={() => setHoveredOrgan(null)}
+                  {...getBoneStyle('bone-patella', '#64748b', '#475569')}
+                />
+
+                {/* Tibia shin bones */}
+                <line
+                  x1="-35" y1="130" x2="-35" y2="230"
+                  onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-tibia'); }}
+                  onMouseEnter={(e) => handleOrganHover(e, 'bone-tibia')}
+                  onMouseMove={(e) => handleOrganHover(e, 'bone-tibia')}
+                  onMouseLeave={() => setHoveredOrgan(null)}
+                  {...getBoneStyle('bone-tibia')}
+                  strokeWidth="2.8"
+                /> 
+                <line
+                  x1="35" y1="130" x2="35" y2="230"
+                  onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-tibia'); }}
+                  onMouseEnter={(e) => handleOrganHover(e, 'bone-tibia')}
+                  onMouseMove={(e) => handleOrganHover(e, 'bone-tibia')}
+                  onMouseLeave={() => setHoveredOrgan(null)}
+                  {...getBoneStyle('bone-tibia')}
+                  strokeWidth="2.8"
+                />
+
+                {/* Fibula calf bones */}
+                <line
+                  x1="-39" y1="130" x2="-39" y2="230"
+                  onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-fibula'); }}
+                  onMouseEnter={(e) => handleOrganHover(e, 'bone-fibula')}
+                  onMouseMove={(e) => handleOrganHover(e, 'bone-fibula')}
+                  onMouseLeave={() => setHoveredOrgan(null)}
+                  {...getBoneStyle('bone-fibula')}
+                  strokeWidth="0.8"
+                  opacity="0.6"
+                /> 
+                <line
+                  x1="39" y1="130" x2="39" y2="230"
+                  onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-fibula'); }}
+                  onMouseEnter={(e) => handleOrganHover(e, 'bone-fibula')}
+                  onMouseMove={(e) => handleOrganHover(e, 'bone-fibula')}
+                  onMouseLeave={() => setHoveredOrgan(null)}
+                  {...getBoneStyle('bone-fibula')}
+                  strokeWidth="0.8"
+                  opacity="0.6"
+                />
               </g>
             )}
 
-            {/* I. MUSCULAR SYSTEM overlaying skeleton frames */}
+            {/* I. MUSCULAR SYSTEM */}
             {showMuscle && (
               <g id="layer-muscle" opacity={opacityMuscle} fill="#991b1b" stroke="#7f1d1d" strokeWidth="1" className="transition-all duration-300">
                 <path d="M -12 -178 L -6 -150 L 0 -150 Z" />
@@ -832,7 +1244,7 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
               </g>
             )}
 
-            {/* J. LYMPHATIC LAYER nodes & green channels */}
+            {/* J. LYMPHATIC LAYER */}
             {showLymphatic && (
               <g id="layer-lymphatic" opacity={opacityLymphatic} stroke="#22c55e" strokeWidth="0.8" fill="#15803d" className="transition-all duration-300">
                 {[-130, -115, -95].map((y, idx) => (
@@ -862,7 +1274,7 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
               />
             )}
 
-            {/* L. SKIN ENVELOPE (Drawn last/outermost - Point 5) */}
+            {/* L. SKIN ENVELOPE */}
             {showSkin && (
               <path
                 id="layer-skin"
@@ -885,29 +1297,60 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
           </svg>
 
           {/* FLOATING HOVER CARD TOOLTIP */}
-          {hoveredOrgan && organs[hoveredOrgan.id] && (
-            <div
-              style={{
-                left: hoveredOrgan.x,
-                top: hoveredOrgan.y,
-                pointerEvents: 'none'
-              }}
-              className="absolute z-30 w-48 bg-slate-950/95 border border-slate-800 rounded-xl p-3 shadow-2xl text-[10px] text-slate-300 font-sans backdrop-blur-md animate-fade-in"
-            >
-              <div className="font-bold text-slate-100 uppercase border-b border-slate-900 pb-1 mb-1.5 flex justify-between">
-                <span>{hoveredOrgan.name}</span>
-                <span className={organs[hoveredOrgan.id].temporary.health < 40 ? 'text-red-400' : 'text-emerald-400'}>
-                  {organs[hoveredOrgan.id].temporary.health.toFixed(0)}%
-                </span>
-              </div>
-              <div className="flex flex-col gap-1 text-slate-400">
-                <div>Perfusion: <strong>{organs[hoveredOrgan.id].temporary.perfusion.toFixed(0)}% (Autoregulated)</strong></div>
-                <div>Blood Supply: <strong>{organs[hoveredOrgan.id].id === 'heart' ? 'Ascending Aorta' : 'Systemic capillaries'}</strong></div>
-                <div>Nerve Supply: <strong>{organs[hoveredOrgan.id].id === 'brain' ? 'CNS Cortex' : 'Peripheral Spinal Root'}</strong></div>
-                <div>Metabolic rate: <strong>{organs[hoveredOrgan.id].temporary.oxygenation > 80 ? 'Aerobic' : 'Anaerobic'}</strong></div>
-                <div>Active Drugs: <span className="text-emerald-400 font-semibold">{organs[hoveredOrgan.id].id === 'liver' && activeMeds['metformin'] ? 'Metformin' : 'None'}</span></div>
-              </div>
-            </div>
+          {hoveredOrgan && (
+            (() => {
+              const bone = bonesCatalog.find(b => b.id === hoveredOrgan.id);
+              if (bone) {
+                return (
+                  <div
+                    style={{
+                      left: hoveredOrgan.x,
+                      top: hoveredOrgan.y,
+                      pointerEvents: 'none'
+                    }}
+                    className="absolute z-30 w-48 bg-slate-950/95 border border-slate-800 rounded-xl p-3 shadow-2xl text-[10px] text-slate-300 font-sans backdrop-blur-md animate-fade-in"
+                  >
+                    <div className="font-bold text-slate-100 uppercase border-b border-slate-900 pb-1 mb-1.5 flex justify-between">
+                      <span>{bone.name}</span>
+                      <span className="text-cyan-400 font-bold uppercase text-[7px]">{bone.subCategory}</span>
+                    </div>
+                    <div className="flex flex-col gap-1 text-slate-400">
+                      <p className="text-slate-300 leading-snug">{bone.description}</p>
+                      {bone.joints.length > 0 && (
+                        <div className="mt-1 border-t border-slate-900 pt-1 text-[8px]">
+                          <strong>Joints:</strong> {bone.joints.join(', ')}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              }
+              const organNode = organs[hoveredOrgan.id];
+              if (organNode) {
+                return (
+                  <div
+                    style={{
+                      left: hoveredOrgan.x,
+                      top: hoveredOrgan.y,
+                      pointerEvents: 'none'
+                    }}
+                    className="absolute z-30 w-48 bg-slate-950/95 border border-slate-800 rounded-xl p-3 shadow-2xl text-[10px] text-slate-300 font-sans backdrop-blur-md animate-fade-in"
+                  >
+                    <div className="font-bold text-slate-100 uppercase border-b border-slate-900 pb-1 mb-1.5 flex justify-between">
+                      <span>{hoveredOrgan.name}</span>
+                      <span className={organNode.temporary.health < 40 ? 'text-red-400' : 'text-emerald-400'}>
+                        {organNode.temporary.health.toFixed(0)}%
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-1 text-slate-400">
+                      <div>Perfusion: <strong>{organNode.temporary.perfusion.toFixed(0)}%</strong></div>
+                      <div>Oxygenation: <strong>{organNode.temporary.oxygenation.toFixed(0)}%</strong></div>
+                    </div>
+                  </div>
+                );
+              }
+              return null;
+            })()
           )}
 
           {/* Hovered Landmark Label */}
