@@ -51,7 +51,7 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
   const [showNerves, setShowNerves] = useState(true);
 
   const [treeSearch, setTreeSearch] = useState('');
-  const [view, setView] = useState<'front' | 'back'>('front');
+  const [view, setView] = useState<'anterior' | 'posterior' | 'leftLateral' | 'rightLateral' | 'superior' | 'inferior'>('anterior');
   const [hoveredLandmark, setHoveredLandmark] = useState<string | null>(null);
 
   // Emojis for system filter tabs
@@ -135,9 +135,10 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
       layerOpacities,
       selectedOrganId,
       hoveredOrgan?.id || null,
-      organs
+      organs,
+      view
     );
-  }, [renderPipeline, zoom, visibleLayers, layerOpacities, selectedOrganId, hoveredOrgan?.id, organs]);
+  }, [renderPipeline, zoom, visibleLayers, layerOpacities, selectedOrganId, hoveredOrgan?.id, organs, view]);
 
   // Dynamic selection and pathology highlighting logic
   const isHighlighted = (id: string) => {
@@ -384,12 +385,21 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
               </button>
             ))}
           </div>
-          <button
-            onClick={() => setView(v => v === 'front' ? 'back' : 'front')}
-            className="px-2.5 py-1.5 bg-slate-900/60 border border-slate-800 text-[10px] uppercase font-bold tracking-wider rounded text-slate-300 hover:text-white"
-          >
-            Rotate ({view})
-          </button>
+          <div className="flex items-center gap-1 bg-slate-900/60 border border-slate-800 p-0.5 rounded-lg z-10">
+            {(['anterior', 'posterior', 'leftLateral', 'rightLateral', 'superior', 'inferior'] as const).map(v => (
+              <button
+                key={v}
+                onClick={() => setView(v)}
+                className={`px-2 py-1 rounded text-[8px] font-bold uppercase tracking-wider transition-all duration-150 ${
+                  view === v
+                    ? 'bg-medical-500/25 text-medical-300 border border-medical-500/40 shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200 border border-transparent'
+                }`}
+              >
+                {v.replace('Lateral', ' Lat')}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Viewport canvas */}
