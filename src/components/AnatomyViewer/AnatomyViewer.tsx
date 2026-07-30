@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import skeletalPng from '../../assets/skeletal_system.png';
 import { OrganNode } from '../../types/physiology';
 import { Eye, EyeOff, Search, Network } from 'lucide-react';
 import { bonesCatalog, BoneMetadata } from '../../data/bones';
@@ -29,31 +30,36 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
   onSelectSystem,
   activeMeds
 }) => {
-  // 11 Layers Opacity Controls
+  // Reference image & overlay layer
+  const [showRefImage, setShowRefImage] = useState(true);
+  const [refImageOpacity, setRefImageOpacity] = useState(1.0);
+  const [showHitZones, setShowHitZones] = useState(true);
+
+  // Legacy layer opacity states (kept for compatibility)
   const [opacitySkin, setOpacitySkin] = useState(0.1);
-  const [opacityFat, setOpacityFat] = useState(0.0);
-  const [opacityMuscle, setOpacityMuscle] = useState(0.0);
+  const [opacityFat] = useState(0.0);
+  const [opacityMuscle] = useState(0.0);
   const [opacitySkeleton, setOpacitySkeleton] = useState(0.35);
-  const [opacityCardio, setOpacityCardio] = useState(0.4);
-  const [opacityRespiratory, setOpacityRespiratory] = useState(0.6);
-  const [opacityDigestive, setOpacityDigestive] = useState(0.5);
-  const [opacityUrinary, setOpacityUrinary] = useState(0.6);
-  const [opacityEndocrine, setOpacityEndocrine] = useState(0.0);
-  const [opacityLymphatic, setOpacityLymphatic] = useState(0.0);
-  const [opacityNerves, setOpacityNerves] = useState(0.3);
+  const [opacityCardio] = useState(0.4);
+  const [opacityRespiratory] = useState(0.6);
+  const [opacityDigestive] = useState(0.5);
+  const [opacityUrinary] = useState(0.6);
+  const [opacityEndocrine] = useState(0.0);
+  const [opacityLymphatic] = useState(0.0);
+  const [opacityNerves] = useState(0.3);
 
   // Layer Visibility states
   const [showSkin, setShowSkin] = useState(true);
-  const [showFat, setShowFat] = useState(false);
-  const [showMuscle, setShowMuscle] = useState(false);
+  const [showFat] = useState(false);
+  const [showMuscle] = useState(false);
   const [showSkeleton, setShowSkeleton] = useState(true);
-  const [showCardio, setShowCardio] = useState(true);
-  const [showRespiratory, setShowRespiratory] = useState(true);
-  const [showDigestive, setShowDigestive] = useState(true);
-  const [showUrinary, setShowUrinary] = useState(true);
-  const [showEndocrine, setShowEndocrine] = useState(false);
-  const [showLymphatic, setShowLymphatic] = useState(false);
-  const [showNerves, setShowNerves] = useState(true);
+  const [showCardio] = useState(true);
+  const [showRespiratory] = useState(true);
+  const [showDigestive] = useState(true);
+  const [showUrinary] = useState(true);
+  const [showEndocrine] = useState(false);
+  const [showLymphatic] = useState(false);
+  const [showNerves] = useState(true);
 
   const [treeSearch, setTreeSearch] = useState('');
   const [view, setView] = useState<string>('anterior');
@@ -616,15 +622,17 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
           onMouseLeave={handleMouseUp}
           className="flex-1 bg-slate-950/30 relative flex items-center justify-center cursor-grab active:cursor-grabbing"
         >
-          {/* LEFT OVERLAY: OPACITY CONTROLLER SLIDERS */}
-          <div className="absolute top-4 left-4 p-3 bg-slate-900/85 border border-slate-800/60 rounded-xl backdrop-blur-md z-10 flex flex-col gap-2 text-[9px] text-slate-400 w-44 shadow-2xl">
+          {/* LEFT OVERLAY: LAYER CONTROLS */}
+          <div className="absolute top-4 left-4 p-3 bg-slate-900/90 border border-slate-800/60 rounded-xl backdrop-blur-md z-10 flex flex-col gap-2 text-[9px] text-slate-400 w-44 shadow-2xl">
             <div className="font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1 mb-1">
               ANATOMICAL LAYERS
             </div>
-            {[
-              { label: '1. Skin Envelope', val: opacitySkin, set: setOpacitySkin, show: showSkin, toggle: setShowSkin },
-              { label: '2. Skeleton Frame', val: opacitySkeleton, set: setOpacitySkeleton, show: showSkeleton, toggle: setShowSkeleton }
-            ].map(layer => (
+            {([
+              { label: '📸 Reference Image', val: refImageOpacity, set: setRefImageOpacity, show: showRefImage, toggle: setShowRefImage },
+              { label: '🫥 Skin Envelope', val: opacitySkin, set: setOpacitySkin, show: showSkin, toggle: setShowSkin },
+              { label: '🦴 Skeleton Frame', val: opacitySkeleton, set: setOpacitySkeleton, show: showSkeleton, toggle: setShowSkeleton },
+              { label: '🎯 Hit Zones', val: showHitZones ? 1 : 0, set: (v: number) => setShowHitZones(v > 0), show: showHitZones, toggle: setShowHitZones }
+            ] as { label: string; val: number; set: (v: number) => void; show: boolean; toggle: (v: boolean) => void }[]).map(layer => (
               <div key={layer.label} className="flex flex-col gap-0.5">
                 <div className="flex justify-between font-semibold items-center">
                   <span>{layer.label}</span>
@@ -632,7 +640,7 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
                     <button
                       onClick={() => {
                         layer.toggle(!layer.show);
-                        layer.set(layer.show ? 0.0 : 0.85);
+                        layer.set(layer.show ? 0.0 : 1.0);
                       }}
                       className="text-slate-500 hover:text-slate-300"
                     >
@@ -642,10 +650,7 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
                   </div>
                 </div>
                 <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.05"
+                  type="range" min="0" max="1" step="0.05"
                   value={layer.val}
                   onChange={e => {
                     const v = parseFloat(e.target.value);
@@ -658,7 +663,7 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
             ))}
           </div>
 
-          {/* TOP RIGHT OVERLAY: ZOOM MINIMAP VIEWPORT */}
+          {/* TOP RIGHT: MINIMAP */}
           <div className="absolute top-4 right-4 p-2 bg-slate-900/80 border border-slate-800/80 rounded-xl z-10 w-24 h-32 flex flex-col items-center justify-between shadow-lg shadow-black/20 text-[8px] text-slate-500">
             <span className="font-semibold tracking-wider uppercase text-[7px] text-slate-400">Viewport Minimap</span>
             <div className="relative border border-slate-800 w-16 h-24 bg-slate-950/60 rounded flex items-center justify-center">
@@ -675,138 +680,215 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
             </div>
           </div>
 
-          {/* SVG Vector Render */}
-          <svg
-            width="100%"
-            height="100%"
-            viewBox="-200 -250 400 500"
+          {/* ═══════════════════════════════════════════════════════════════════
+               HYBRID RENDER: PNG BASE + SVG HIT-ZONE OVERLAY
+               The Innerbody PNG provides medical-grade visual accuracy.
+               SVG polygons layered on top provide full interactivity.
+          ════════════════════════════════════════════════════════════════════ */}
+          <div
             style={{
-              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom * 1.35})` 
+              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+              transition: isDragging ? 'none' : 'transform 0.15s ease-out',
+              width: '340px',
+              height: '560px',
+              position: 'relative',
+              flexShrink: 0
             }}
-            className="w-full h-full transition-all duration-300"
           >
-            {/* STYLES & RADIAL GRADIENTS FOR 3D RENDER DEPTH */}
-            <defs>
-              <filter id="organ-shadow">
-                <feDropShadow dx="0" dy="2" stdDeviation="3.5" floodColor="#000" floodOpacity="0.6" />
-              </filter>
-              <filter id="glow-selected">
-                <feGaussianBlur stdDeviation="3" result="blur" />
-                <feMerge>
-                  <feMergeNode in="blur" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-              <filter id="glow-inflamed">
-                <feGaussianBlur stdDeviation="4.5" result="blur" />
-                <feMerge>
-                  <feMergeNode in="blur" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-
-              {/* Organ Gradients */}
-              <radialGradient id="grad-brain" cx="45%" cy="35%" r="55%">
-                <stop offset="0%" stopColor="#fecdd3" />
-                <stop offset="60%" stopColor="#f43f5e" />
-                <stop offset="100%" stopColor="#9f1239" />
-              </radialGradient>
-              <radialGradient id="grad-cerebellum" cx="50%" cy="40%" r="50%">
-                <stop offset="0%" stopColor="#fda4af" />
-                <stop offset="85%" stopColor="#be123c" />
-                <stop offset="100%" stopColor="#881337" />
-              </radialGradient>
-              <radialGradient id="grad-heart" cx="35%" cy="35%" r="55%">
-                <stop offset="0%" stopColor="#f43f5e" />
-                <stop offset="65%" stopColor="#be123c" />
-                <stop offset="100%" stopColor="#4c0519" />
-              </radialGradient>
-              <radialGradient id="grad-lungs" cx="40%" cy="30%" r="60%">
-                <stop offset="0%" stopColor="#ffe4e6" />
-                <stop offset="70%" stopColor="#fb7185" />
-                <stop offset="100%" stopColor="#9f1239" />
-              </radialGradient>
-              <linearGradient id="grad-liver" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#a16207" />
-                <stop offset="60%" stopColor="#713f12" />
-                <stop offset="100%" stopColor="#422006" />
-              </linearGradient>
-              <linearGradient id="grad-stomach" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#fecdd3" />
-                <stop offset="70%" stopColor="#fda4af" />
-                <stop offset="100%" stopColor="#9f1239" />
-              </linearGradient>
-              <radialGradient id="grad-kidneys" cx="40%" cy="40%" r="55%">
-                <stop offset="0%" stopColor="#fda4af" />
-                <stop offset="70%" stopColor="#be123c" />
-                <stop offset="100%" stopColor="#4c0519" />
-              </radialGradient>
-              <linearGradient id="grad-pancreas" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#fef08a" />
-                <stop offset="65%" stopColor="#eab308" />
-                <stop offset="100%" stopColor="#854d0e" />
-              </linearGradient>
-
-              {/* Dynamic state fills */}
-              <radialGradient id="grad-hypoxic" cx="40%" cy="40%" r="60%">
-                <stop offset="0%" stopColor="#67e8f9" />
-                <stop offset="70%" stopColor="#0891b2" />
-                <stop offset="100%" stopColor="#164e63" />
-              </radialGradient>
-              <linearGradient id="grad-infected" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#bef264" />
-                <stop offset="65%" stopColor="#84cc16" />
-                <stop offset="100%" stopColor="#3f6212" />
-              </linearGradient>
-              <radialGradient id="grad-inflamed" cx="30%" cy="30%" r="60%">
-                <stop offset="0%" stopColor="#fca5a5" />
-                <stop offset="65%" stopColor="#dc2626" />
-                <stop offset="100%" stopColor="#450a0a" />
-              </radialGradient>
-            </defs>
-
-            {/* STACKED RENDERING SYSTEM - ECS DRIVEN SCENE GRAPH GRAPHICS */}
-            <g id="layer-ecs-pipeline" className="transition-all duration-300">
-              {processedNodes.map((node) => (
-                <path
-                  key={node.entityId}
-                  d={node.svgPath}
-                  transform={node.transformCSS}
-                  fill={node.fill}
-                  stroke={node.stroke}
-                  strokeWidth={node.strokeWidth}
-                  filter={node.filter}
-                  className={node.className}
-                  opacity={node.opacity}
-                  onClick={(e) => { e.stopPropagation(); onSelectOrgan(node.entityId); }}
-                  onMouseEnter={(e) => handleOrganHover(e, node.entityId)}
-                  onMouseMove={(e) => handleOrganHover(e, node.entityId)}
-                  onMouseLeave={() => setHoveredOrgan(null)}
-                />
-              ))}
-            </g>
-
-            {/* L. SKIN ENVELOPE */}
-            {showSkin && (
-              <path
-                id="layer-skin"
-                d="M 0 -240 C 20 -240, 24 -195, 18 -180 C 18 -165, 25 -155, 55 -150 C 60 -150, 65 -130, 70 -90 C 75 -50, 82 0, 82 25 C 82 35, 85 45, 83 60 C 81 72, 76 72, 74 65 C 72 50, 66 10, 63 -25 C 61 -60, 50 -105, 44 -115 C 40 -115, 34 -90, 34 -60 C 34 -30, 38 0, 25 0 C 25 30, 35 90, 35 120 C 35 150, 38 195, 38 220 C 38 235, 30 240, 25 240 L 12 240 C 15 220, 10 190, 5 130 L -5 130 C -10 190, -15 220, -12 240 L -25 240 C -30 240, -38 235, -38 220 C -38 195, -35 150, -35 120 C -35 90, -25 30, -25 0 C -38 0, -34 -30, -34 -60 C -34 -90, -40 -115, -44 -115 C -50 -105, -61 -60, -63 -25 C -66 10, -72 50, -74 65 C -76 72, -81 72, -83 60 C -85 45, -82 35, -82 25 C -82 0, -75 -50, -70 -90 C -65 -130, -60 -150, -55 -150 C -25 -155, -18 -165, -18 -180 C -24 -195, -20 -240, 0 -240 Z"
-                fill="#0f172a"
-                fillOpacity={opacitySkin}
-                stroke="#22d3ee"
-                strokeWidth="1.2"
-                strokeOpacity="0.25"
-                className="transition-all duration-300"
+            {/* LAYER 1: INNERBODY REFERENCE PNG */}
+            {showRefImage && (
+              <img
+                src={skeletalPng}
+                alt="Human Skeletal System - Anterior View"
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'contain',
+                  opacity: refImageOpacity,
+                  filter: activeSystemId === 'skeletal'
+                    ? 'brightness(1.05) contrast(1.1)'
+                    : 'brightness(0.9) contrast(1.0)',
+                  transition: 'opacity 0.4s ease, filter 0.4s ease',
+                  userSelect: 'none',
+                  pointerEvents: 'none'
+                }}
+                draggable={false}
               />
             )}
 
-            {/* M. ANATOMICAL SURFACE LANDMARKS GUIDE */}
-            <g id="anatomical-landmarks" stroke="#22d3ee" strokeWidth="1" strokeDasharray="1,1" opacity="0.5">
-              <path d="M -30 -38 Q 0 -34, 30 -38" fill="none" onMouseEnter={() => setHoveredLandmark('Costal Margin')} onMouseLeave={() => setHoveredLandmark(null)} className="cursor-pointer hover:stroke-white hover:stroke-[2px]" />
-              <circle cx="0" cy="-28" r="2.5" fill="#22d3ee" fillOpacity="0.4" onMouseEnter={() => setHoveredLandmark('Umbilicus')} onMouseLeave={() => setHoveredLandmark(null)} className="cursor-pointer hover:fill-white" />
-              <path d="M -30 -22 Q 0 -24, 30 -22" fill="none" onMouseEnter={() => setHoveredLandmark('Iliac Crest')} onMouseLeave={() => setHoveredLandmark(null)} className="cursor-pointer hover:stroke-white hover:stroke-[2px]" />
-            </g>
-          </svg>
+            {/* LAYER 2: SVG INTERACTIVE HIT-ZONES */}
+            {/* Coordinates are calibrated to 340×560 container matching the PNG */}
+            <svg
+              viewBox="0 0 340 560"
+              width="340"
+              height="560"
+              style={{ position: 'absolute', inset: 0, overflow: 'visible' }}
+            >
+              <defs>
+                <filter id="hz-glow-selected" x="-30%" y="-30%" width="160%" height="160%">
+                  <feGaussianBlur stdDeviation="4" result="blur" />
+                  <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+                </filter>
+                <filter id="hz-glow-hover" x="-20%" y="-20%" width="140%" height="140%">
+                  <feGaussianBlur stdDeviation="2.5" result="blur" />
+                  <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+                </filter>
+              </defs>
+
+              {showHitZones && (() => {
+                // Each hit zone: { id, label, shape, ...coords }
+                // Coordinates calibrated to 340x560 PNG (anterior female view)
+                const hitZones: Array<{
+                  id: string;
+                  label: string;
+                  type: 'ellipse' | 'rect' | 'polygon';
+                  cx?: number; cy?: number; rx?: number; ry?: number;
+                  x?: number; y?: number; w?: number; h?: number;
+                  points?: string;
+                }> = [
+                  // ── SKULL & HEAD ──
+                  { id: 'bone-skull',    label: 'Skull (Cranium)',         type: 'ellipse', cx: 170, cy: 44,  rx: 38, ry: 42 },
+                  { id: 'bone-mandible', label: 'Mandible (Jaw)',          type: 'ellipse', cx: 170, cy: 84,  rx: 22, ry: 14 },
+                  // ── CERVICAL SPINE ──
+                  { id: 'bone-cervical-vertebrae', label: 'Cervical Spine (C1–C7)', type: 'ellipse', cx: 170, cy: 108, rx: 10, ry: 16 },
+                  // ── SHOULDER GIRDLE ──
+                  { id: 'bone-clavicle', label: 'Clavicles (Collarbones)', type: 'polygon', points: '118,128 155,118 185,118 222,128 220,134 185,124 155,124' },
+                  { id: 'bone-scapula',  label: 'Scapulae (Shoulder Blades)', type: 'ellipse', cx: 113, cy: 165, rx: 22, ry: 28 },
+                  // ── THORAX ──
+                  { id: 'bone-sternum',  label: 'Sternum (Breastbone)',    type: 'rect', x: 158, y: 130, w: 24, h: 72 },
+                  { id: 'bone-ribs',     label: 'Rib Cage (Ribs 1–12)',    type: 'polygon', points: '130,130 170,126 200,126 215,130 220,175 210,210 175,220 155,220 130,210 120,175' },
+                  // ── THORACIC & LUMBAR SPINE ──
+                  { id: 'bone-thoracic-vertebrae', label: 'Thoracic Spine (T1–T12)', type: 'ellipse', cx: 170, cy: 182, rx: 9,  ry: 42 },
+                  { id: 'bone-lumbar-vertebrae',   label: 'Lumbar Spine (L1–L5)',    type: 'ellipse', cx: 170, cy: 244, rx: 9,  ry: 28 },
+                  // ── PELVIS ──
+                  { id: 'bone-ilium',   label: 'Ilium (Hip Bone)',         type: 'ellipse', cx: 148, cy: 290, rx: 30, ry: 22 },
+                  { id: 'bone-sacrum',  label: 'Sacrum',                   type: 'ellipse', cx: 170, cy: 295, rx: 16, ry: 20 },
+                  { id: 'bone-pubis',   label: 'Pubic Symphysis',          type: 'ellipse', cx: 170, cy: 316, rx: 18, ry: 10 },
+                  // ── UPPER LIMBS – LEFT (viewer's right) ──
+                  { id: 'bone-humerus-l', label: 'Left Humerus (Upper Arm)', type: 'ellipse', cx: 102, cy: 215, rx: 12, ry: 48 },
+                  { id: 'bone-radius-l',  label: 'Left Radius (Forearm)',    type: 'ellipse', cx: 96,  cy: 296, rx: 8,  ry: 40 },
+                  { id: 'bone-ulna-l',    label: 'Left Ulna (Forearm)',      type: 'ellipse', cx: 87,  cy: 296, rx: 7,  ry: 40 },
+                  { id: 'bone-carpals-l', label: 'Left Wrist (Carpals)',     type: 'ellipse', cx: 88,  cy: 348, rx: 12, ry: 10 },
+                  { id: 'bone-metacarpals-l', label: 'Left Hand (Metacarpals)', type: 'ellipse', cx: 83, cy: 370, rx: 14, ry: 14 },
+                  { id: 'bone-phalanges-l',   label: 'Left Fingers (Phalanges)', type: 'ellipse', cx: 78, cy: 395, rx: 18, ry: 16 },
+                  // ── UPPER LIMBS – RIGHT (viewer's left) ──
+                  { id: 'bone-humerus-r', label: 'Right Humerus (Upper Arm)', type: 'ellipse', cx: 238, cy: 215, rx: 12, ry: 48 },
+                  { id: 'bone-radius-r',  label: 'Right Radius (Forearm)',    type: 'ellipse', cx: 244, cy: 296, rx: 8,  ry: 40 },
+                  { id: 'bone-ulna-r',    label: 'Right Ulna (Forearm)',      type: 'ellipse', cx: 253, cy: 296, rx: 7,  ry: 40 },
+                  { id: 'bone-carpals-r', label: 'Right Wrist (Carpals)',     type: 'ellipse', cx: 252, cy: 348, rx: 12, ry: 10 },
+                  { id: 'bone-metacarpals-r', label: 'Right Hand (Metacarpals)', type: 'ellipse', cx: 257, cy: 370, rx: 14, ry: 14 },
+                  { id: 'bone-phalanges-r',   label: 'Right Fingers (Phalanges)', type: 'ellipse', cx: 262, cy: 395, rx: 18, ry: 16 },
+                  // ── LOWER LIMBS – LEFT ──
+                  { id: 'bone-femur-l',   label: 'Left Femur (Thigh Bone)',  type: 'ellipse', cx: 148, cy: 385, rx: 18, ry: 56 },
+                  { id: 'bone-patella-l', label: 'Left Patella (Kneecap)',   type: 'ellipse', cx: 148, cy: 446, rx: 11, ry: 11 },
+                  { id: 'bone-tibia-l',   label: 'Left Tibia (Shin Bone)',   type: 'ellipse', cx: 146, cy: 490, rx: 11, ry: 40 },
+                  { id: 'bone-fibula-l',  label: 'Left Fibula',              type: 'ellipse', cx: 136, cy: 490, rx: 6,  ry: 38 },
+                  { id: 'bone-tarsals-l', label: 'Left Ankle (Tarsals)',     type: 'ellipse', cx: 144, cy: 534, rx: 13, ry: 10 },
+                  { id: 'bone-metatarsals-l', label: 'Left Foot (Metatarsals)', type: 'ellipse', cx: 148, cy: 548, rx: 16, ry: 10 },
+                  // ── LOWER LIMBS – RIGHT ──
+                  { id: 'bone-femur-r',   label: 'Right Femur (Thigh Bone)', type: 'ellipse', cx: 192, cy: 385, rx: 18, ry: 56 },
+                  { id: 'bone-patella-r', label: 'Right Patella (Kneecap)',  type: 'ellipse', cx: 192, cy: 446, rx: 11, ry: 11 },
+                  { id: 'bone-tibia-r',   label: 'Right Tibia (Shin Bone)',  type: 'ellipse', cx: 194, cy: 490, rx: 11, ry: 40 },
+                  { id: 'bone-fibula-r',  label: 'Right Fibula',             type: 'ellipse', cx: 204, cy: 490, rx: 6,  ry: 38 },
+                  { id: 'bone-tarsals-r', label: 'Right Ankle (Tarsals)',    type: 'ellipse', cx: 196, cy: 534, rx: 13, ry: 10 },
+                  { id: 'bone-metatarsals-r', label: 'Right Foot (Metatarsals)', type: 'ellipse', cx: 192, cy: 548, rx: 16, ry: 10 },
+                ];
+
+                return hitZones.map(zone => {
+                  const isSelected = selectedOrganId === zone.id;
+                  const isHidden = hiddenBones.has(zone.id);
+                  const isAdjacent = isolatedBoneId && showAdjacentOnly
+                    ? SkeletalInteraction.getAdjacentBones(registry, isolatedBoneId).includes(zone.id)
+                    : false;
+                  const isIsolated = isolatedBoneId === zone.id;
+                  const dimmed = isolatedBoneId && !isIsolated && !isAdjacent;
+
+                  if (isHidden) return null;
+
+                  const baseOpacity = dimmed ? 0.08 : isAdjacent ? 0.35 : 0.0;
+                  const hoverOpacity = 0.28;
+                  const selectedOpacity = 0.45;
+                  const strokeOpacity = isSelected ? 1 : dimmed ? 0.1 : 0.0;
+                  const fillColor = isSelected ? '#38bdf8' : isAdjacent ? '#818cf8' : '#38bdf8';
+                  const strokeColor = isSelected ? '#38bdf8' : '#94a3b8';
+
+                  const commonProps = {
+                    fill: fillColor,
+                    fillOpacity: isSelected ? selectedOpacity : baseOpacity,
+                    stroke: strokeColor,
+                    strokeWidth: isSelected ? 2 : 1,
+                    strokeOpacity,
+                    filter: isSelected ? 'url(#hz-glow-selected)' : undefined,
+                    style: { cursor: 'pointer', transition: 'fill-opacity 0.15s, stroke-opacity 0.15s' },
+                    onClick: (e: React.MouseEvent) => { e.stopPropagation(); onSelectOrgan(zone.id); },
+                    onMouseEnter: (e: React.MouseEvent) => {
+                      const rect = (e.currentTarget as SVGElement).closest('div')?.getBoundingClientRect();
+                      const svgEl = (e.currentTarget as SVGElement).closest('svg');
+                      const svgRect = svgEl?.getBoundingClientRect();
+                      if (svgRect) {
+                        setHoveredOrgan({
+                          id: zone.id,
+                          name: zone.label,
+                          x: e.clientX - (rect?.left ?? 0) + 12,
+                          y: e.clientY - (rect?.top ?? 0) - 10
+                        });
+                      }
+                    },
+                    onMouseMove: (e: React.MouseEvent) => {
+                      const rect = (e.currentTarget as SVGElement).closest('div')?.getBoundingClientRect();
+                      if (rect) {
+                        setHoveredOrgan(prev => prev ? {
+                          ...prev,
+                          x: e.clientX - rect.left + 12,
+                          y: e.clientY - rect.top - 10
+                        } : null);
+                      }
+                    },
+                    onMouseLeave: () => setHoveredOrgan(null),
+                  };
+
+                  if (zone.type === 'ellipse') {
+                    return <ellipse key={zone.id} cx={zone.cx} cy={zone.cy} rx={zone.rx} ry={zone.ry} {...commonProps} />;
+                  } else if (zone.type === 'rect') {
+                    return <rect key={zone.id} x={zone.x} y={zone.y} width={zone.w} height={zone.h} rx={3} {...commonProps} />;
+                  } else {
+                    return <polygon key={zone.id} points={zone.points} {...commonProps} />;
+                  }
+                });
+              })()}
+
+              {/* ANATOMICAL LANDMARK DOTS */}
+              <g opacity="0.55" stroke="#22d3ee" strokeWidth="0.8" strokeDasharray="2,2">
+                <circle cx="170" cy="222" r="3" fill="#22d3ee" fillOpacity="0.5"
+                  onMouseEnter={() => setHoveredLandmark('Costal Margin')}
+                  onMouseLeave={() => setHoveredLandmark(null)}
+                  style={{ cursor: 'pointer' }}
+                />
+                <circle cx="170" cy="262" r="3" fill="#22d3ee" fillOpacity="0.5"
+                  onMouseEnter={() => setHoveredLandmark('Umbilicus')}
+                  onMouseLeave={() => setHoveredLandmark(null)}
+                  style={{ cursor: 'pointer' }}
+                />
+                <circle cx="148" cy="281" r="2.5" fill="#22d3ee" fillOpacity="0.4"
+                  onMouseEnter={() => setHoveredLandmark('Anterior Superior Iliac Spine (ASIS)')}
+                  onMouseLeave={() => setHoveredLandmark(null)}
+                  style={{ cursor: 'pointer' }}
+                />
+                <circle cx="192" cy="281" r="2.5" fill="#22d3ee" fillOpacity="0.4"
+                  onMouseEnter={() => setHoveredLandmark('Anterior Superior Iliac Spine (ASIS)')}
+                  onMouseLeave={() => setHoveredLandmark(null)}
+                  style={{ cursor: 'pointer' }}
+                />
+                <circle cx="170" cy="86"  r="2" fill="#22d3ee" fillOpacity="0.4"
+                  onMouseEnter={() => setHoveredLandmark('Glabella (Forehead midpoint)')}
+                  onMouseLeave={() => setHoveredLandmark(null)}
+                  style={{ cursor: 'pointer' }}
+                />
+              </g>
+            </svg>
+          </div>
 
           {/* FLOATING HOVER CARD TOOLTIP */}
           {hoveredOrgan && (
