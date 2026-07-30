@@ -1055,7 +1055,24 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
                   onMouseLeave={() => setHoveredOrgan(null)}
                   {...getBoneStyle('bone-ilium', '#64748b', '#1e293b')}
                 />
-                {/* Pubis & Ischium base */}
+                {/* Ischium (Sitting bone rings) */}
+                <path
+                  d="M -16 6 C -20 8, -18 16, -10 14 C -12 10, -14 6, -16 6 Z"
+                  onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-ischium'); }}
+                  onMouseEnter={(e) => handleOrganHover(e, 'bone-ischium')}
+                  onMouseMove={(e) => handleOrganHover(e, 'bone-ischium')}
+                  onMouseLeave={() => setHoveredOrgan(null)}
+                  {...getBoneStyle('bone-ischium', '#64748b', '#0f172a')}
+                />
+                <path
+                  d="M 16 6 C 20 8, 18 16, 10 14 C 12 10, 14 6, 16 6 Z"
+                  onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-ischium'); }}
+                  onMouseEnter={(e) => handleOrganHover(e, 'bone-ischium')}
+                  onMouseMove={(e) => handleOrganHover(e, 'bone-ischium')}
+                  onMouseLeave={() => setHoveredOrgan(null)}
+                  {...getBoneStyle('bone-ischium', '#64748b', '#0f172a')}
+                />
+                {/* Pubis (Pubic arch and symphysis joint midline) */}
                 <path
                   d="M -7 -22 L 7 -22 L 4 4 L 0 12 L -4 4 Z"
                   onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-pubis'); }}
@@ -1072,6 +1089,15 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
                   onMouseMove={(e) => handleOrganHover(e, 'bone-sacrum')}
                   onMouseLeave={() => setHoveredOrgan(null)}
                   {...getBoneStyle('bone-sacrum', '#64748b', '#1e293b')}
+                />
+                {/* Coccyx (Terminal tailbone tip) */}
+                <path
+                  d="M -2.5 -18 L 2.5 -18 L 0 -13 Z"
+                  onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-coccyx'); }}
+                  onMouseEnter={(e) => handleOrganHover(e, 'bone-coccyx')}
+                  onMouseMove={(e) => handleOrganHover(e, 'bone-coccyx')}
+                  onMouseLeave={() => setHoveredOrgan(null)}
+                  {...getBoneStyle('bone-coccyx', '#64748b', '#0f172a')}
                 />
 
                 {/* Humerus Upper arm bones */}
@@ -1134,7 +1160,7 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
                   strokeWidth="1.6"
                 />
 
-                {/* Hands carpals/metacarpals */}
+                {/* Hands carpals/metacarpals/phalanges */}
                 {/* Left Hand */}
                 <circle
                   cx="-95" cy="32" r="2.5"
@@ -1144,15 +1170,35 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
                   onMouseLeave={() => setHoveredOrgan(null)}
                   {...getBoneStyle('bone-carpals', '#64748b', '#1e293b')}
                 />
-                <line
-                  x1="-95" y1="34" x2="-97" y2="48"
+                <g
                   onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-metacarpals'); }}
                   onMouseEnter={(e) => handleOrganHover(e, 'bone-metacarpals')}
                   onMouseMove={(e) => handleOrganHover(e, 'bone-metacarpals')}
                   onMouseLeave={() => setHoveredOrgan(null)}
                   {...getBoneStyle('bone-metacarpals')}
                   strokeWidth="1.2"
-                />
+                >
+                  <line x1="-95" y1="32" x2="-102" y2="38" />
+                  <line x1="-95" y1="32" x2="-98" y2="44" />
+                  <line x1="-95" y1="32" x2="-95" y2="46" />
+                  <line x1="-95" y1="32" x2="-92" y2="44" />
+                  <line x1="-95" y1="32" x2="-89" y2="40" />
+                </g>
+                <g
+                  onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-phalanges-hand'); }}
+                  onMouseEnter={(e) => handleOrganHover(e, 'bone-phalanges-hand')}
+                  onMouseMove={(e) => handleOrganHover(e, 'bone-phalanges-hand')}
+                  onMouseLeave={() => setHoveredOrgan(null)}
+                  {...getBoneStyle('bone-phalanges-hand')}
+                  strokeWidth="1.0"
+                >
+                  <line x1="-102" y1="38" x2="-106" y2="42" />
+                  <line x1="-98" y1="44" x2="-100" y2="54" />
+                  <line x1="-95" y1="46" x2="-95" y2="57" />
+                  <line x1="-92" y1="44" x2="-91" y2="54" />
+                  <line x1="-89" y1="40" x2="-87" y2="49" />
+                </g>
+
                 {/* Right Hand */}
                 <circle
                   cx="95" cy="32" r="2.5"
@@ -1162,15 +1208,34 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
                   onMouseLeave={() => setHoveredOrgan(null)}
                   {...getBoneStyle('bone-carpals', '#64748b', '#1e293b')}
                 />
-                <line
-                  x1="95" y1="34" x2="97" y2="48"
+                <g
                   onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-metacarpals'); }}
                   onMouseEnter={(e) => handleOrganHover(e, 'bone-metacarpals')}
                   onMouseMove={(e) => handleOrganHover(e, 'bone-metacarpals')}
                   onMouseLeave={() => setHoveredOrgan(null)}
                   {...getBoneStyle('bone-metacarpals')}
                   strokeWidth="1.2"
-                />
+                >
+                  <line x1="95" y1="32" x2="102" y2="38" />
+                  <line x1="95" y1="32" x2="98" y2="44" />
+                  <line x1="95" y1="32" x2="95" y2="46" />
+                  <line x1="95" y1="32" x2="92" y2="44" />
+                  <line x1="95" y1="32" x2="89" y2="40" />
+                </g>
+                <g
+                  onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-phalanges-hand'); }}
+                  onMouseEnter={(e) => handleOrganHover(e, 'bone-phalanges-hand')}
+                  onMouseMove={(e) => handleOrganHover(e, 'bone-phalanges-hand')}
+                  onMouseLeave={() => setHoveredOrgan(null)}
+                  {...getBoneStyle('bone-phalanges-hand')}
+                  strokeWidth="1.0"
+                >
+                  <line x1="102" y1="38" x2="106" y2="42" />
+                  <line x1="98" y1="44" x2="100" y2="54" />
+                  <line x1="95" y1="46" x2="95" y2="57" />
+                  <line x1="92" y1="44" x2="91" y2="54" />
+                  <line x1="89" y1="40" x2="87" y2="49" />
+                </g>
 
                 {/* Femur thigh bones */}
                 <line
@@ -1251,6 +1316,82 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
                   strokeWidth="0.8"
                   opacity="0.6"
                 />
+
+                {/* Left Foot: Tarsals, Metatarsals, and Phalanges */}
+                <circle
+                  cx="-37" cy="232" r="2.8"
+                  onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-tarsals'); }}
+                  onMouseEnter={(e) => handleOrganHover(e, 'bone-tarsals')}
+                  onMouseMove={(e) => handleOrganHover(e, 'bone-tarsals')}
+                  onMouseLeave={() => setHoveredOrgan(null)}
+                  {...getBoneStyle('bone-tarsals', '#64748b', '#1e293b')}
+                />
+                <g
+                  onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-metatarsals'); }}
+                  onMouseEnter={(e) => handleOrganHover(e, 'bone-metatarsals')}
+                  onMouseMove={(e) => handleOrganHover(e, 'bone-metatarsals')}
+                  onMouseLeave={() => setHoveredOrgan(null)}
+                  {...getBoneStyle('bone-metatarsals')}
+                  strokeWidth="1.2"
+                >
+                  <line x1="-39" y1="233" x2="-44" y2="242" />
+                  <line x1="-38" y1="234" x2="-41" y2="244" />
+                  <line x1="-37" y1="234" x2="-37" y2="245" />
+                  <line x1="-36" y1="234" x2="-33" y2="244" />
+                  <line x1="-35" y1="233" x2="-29" y2="241" />
+                </g>
+                <g
+                  onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-phalanges-foot'); }}
+                  onMouseEnter={(e) => handleOrganHover(e, 'bone-phalanges-foot')}
+                  onMouseMove={(e) => handleOrganHover(e, 'bone-phalanges-foot')}
+                  onMouseLeave={() => setHoveredOrgan(null)}
+                  {...getBoneStyle('bone-phalanges-foot')}
+                  strokeWidth="1.0"
+                >
+                  <line x1="-44" y1="242" x2="-47" y2="246" />
+                  <line x1="-41" y1="244" x2="-43" y2="249" />
+                  <line x1="-37" y1="245" x2="-37" y2="251" />
+                  <line x1="-33" y1="244" x2="-32" y2="249" />
+                  <line x1="-29" y1="241" x2="-26" y2="245" />
+                </g>
+
+                {/* Right Foot: Tarsals, Metatarsals, and Phalanges */}
+                <circle
+                  cx="37" cy="232" r="2.8"
+                  onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-tarsals'); }}
+                  onMouseEnter={(e) => handleOrganHover(e, 'bone-tarsals')}
+                  onMouseMove={(e) => handleOrganHover(e, 'bone-tarsals')}
+                  onMouseLeave={() => setHoveredOrgan(null)}
+                  {...getBoneStyle('bone-tarsals', '#64748b', '#1e293b')}
+                />
+                <g
+                  onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-metatarsals'); }}
+                  onMouseEnter={(e) => handleOrganHover(e, 'bone-metatarsals')}
+                  onMouseMove={(e) => handleOrganHover(e, 'bone-metatarsals')}
+                  onMouseLeave={() => setHoveredOrgan(null)}
+                  {...getBoneStyle('bone-metatarsals')}
+                  strokeWidth="1.2"
+                >
+                  <line x1="39" y1="233" x2="44" y2="242" />
+                  <line x1="38" y1="234" x2="41" y2="244" />
+                  <line x1="37" y1="234" x2="37" y2="245" />
+                  <line x1="36" y1="234" x2="33" y2="244" />
+                  <line x1="35" y1="233" x2="29" y2="241" />
+                </g>
+                <g
+                  onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-phalanges-foot'); }}
+                  onMouseEnter={(e) => handleOrganHover(e, 'bone-phalanges-foot')}
+                  onMouseMove={(e) => handleOrganHover(e, 'bone-phalanges-foot')}
+                  onMouseLeave={() => setHoveredOrgan(null)}
+                  {...getBoneStyle('bone-phalanges-foot')}
+                  strokeWidth="1.0"
+                >
+                  <line x1="44" y1="242" x2="47" y2="246" />
+                  <line x1="41" y1="244" x2="43" y2="249" />
+                  <line x1="37" y1="245" x2="37" y2="251" />
+                  <line x1="33" y1="244" x2="32" y2="249" />
+                  <line x1="29" y1="241" x2="26" y2="245" />
+                </g>
               </g>
             )}
 
