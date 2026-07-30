@@ -8,7 +8,7 @@ export interface BoneMetadata {
 }
 
 export const bonesCatalog: BoneMetadata[] = [
-  // axial - skull cranium
+  // AXIAL - CRANIUM
   {
     id: 'bone-frontal',
     name: 'Frontal Bone',
@@ -57,8 +57,16 @@ export const bonesCatalog: BoneMetadata[] = [
     description: 'Light, spongy bone at the anterior cranial base, forming parts of the nasal cavity and septum.',
     joints: ['Sphenoid', 'Frontal', 'Vomer']
   },
+  {
+    id: 'bone-auditory-ossicles',
+    name: 'Auditory Ossicles (Malleus/Incus/Stapes)',
+    category: 'axial',
+    subCategory: 'cranium',
+    description: 'The six smallest bones of the body (three in each ear) housed in the temporal bone; transmit sound vibrations.',
+    joints: ['Articulate together between tympanic membrane and oval window']
+  },
 
-  // axial - skull face
+  // AXIAL - FACIAL BONES
   {
     id: 'bone-mandible',
     name: 'Mandible (Jawbone)',
@@ -92,6 +100,14 @@ export const bonesCatalog: BoneMetadata[] = [
     joints: ['Frontal', 'Maxilla']
   },
   {
+    id: 'bone-lacrimal',
+    name: 'Lacrimal Bones (L/R)',
+    category: 'axial',
+    subCategory: 'face',
+    description: 'Small, thin bones forming the medial walls of the orbital cavities; house the tear ducts.',
+    joints: ['Frontal', 'Ethmoid', 'Maxilla']
+  },
+  {
     id: 'bone-vomer',
     name: 'Vomer',
     category: 'axial',
@@ -99,15 +115,55 @@ export const bonesCatalog: BoneMetadata[] = [
     description: 'Thin, flat bone forming the inferior and posterior portion of the nasal septum.',
     joints: ['Ethmoid', 'Sphenoid', 'Maxillae']
   },
-
-  // axial - spine
   {
-    id: 'bone-cervical',
-    name: 'Cervical Spine (C1-C7)',
+    id: 'bone-palatine',
+    name: 'Palatine Bones (L/R)',
+    category: 'axial',
+    subCategory: 'face',
+    description: 'Paired L-shaped bones forming the posterior third of the hard palate and part of the nasal cavity.',
+    joints: ['Maxilla', 'Vomer', 'Sphenoid']
+  },
+  {
+    id: 'bone-inferior-conchae',
+    name: 'Inferior Nasal Conchae (L/R)',
+    category: 'axial',
+    subCategory: 'face',
+    description: 'Paired curved bones that project medially from the lateral walls of the nasal cavity to swirl inspired air.',
+    joints: ['Maxilla', 'Palatine', 'Lacrimal']
+  },
+  {
+    id: 'bone-hyoid',
+    name: 'Hyoid Bone (Neck)',
+    category: 'axial',
+    subCategory: 'face',
+    description: 'U-shaped floating bone in the anterior neck. Anchors tongue muscles; holds trachea open. Does not touch any other bone.',
+    joints: ['None (Suspended by muscles/ligaments)']
+  },
+
+  // AXIAL - VERTEBRAE
+  {
+    id: 'bone-c1-atlas',
+    name: 'C1 Vertebra (Atlas)',
     category: 'axial',
     subCategory: 'spine',
-    description: 'The 7 neck vertebrae. C1 (Atlas) supports the skull; C2 (Axis) enables neck rotation.',
-    joints: ['Atlanto-axial joint', 'Intervertebral discs']
+    description: 'The first cervical vertebra. Ring-shaped, lacks a body, supports the skull and enables nodding (yes).',
+    joints: ['Atlanto-occipital joint', 'Atlanto-axial joint (C2)']
+  },
+  {
+    id: 'bone-c2-axis',
+    name: 'C2 Vertebra (Axis)',
+    category: 'axial',
+    subCategory: 'spine',
+    description: 'The second cervical vertebra. Possesses the Odontoid process (dens) acting as a pivot for neck rotation (no).',
+    joints: ['Atlanto-axial joint (C1)', 'C3 cervical vertebra']
+  },
+  {
+    id: 'bone-cervical',
+    name: 'C3-C7 Cervical Vertebrae',
+    category: 'axial',
+    subCategory: 'spine',
+    description: 'Vertebrae of the neck neck. Light, features transverse foramina to channel carotid arteries.',
+    joints: ['Adjacent cervical vertebrae', 'Intervertebral discs']
   },
   {
     id: 'bone-thoracic',
@@ -142,7 +198,7 @@ export const bonesCatalog: BoneMetadata[] = [
     joints: ['Sacrococcygeal symphysis']
   },
 
-  // axial - thorax
+  // AXIAL - THORACIC CAGE
   {
     id: 'bone-sternum-manubrium',
     name: 'Manubrium (Sternum)',
@@ -192,7 +248,7 @@ export const bonesCatalog: BoneMetadata[] = [
     joints: ['Thoracic vertebrae']
   },
 
-  // appendicular - pectoral girdle
+  // APPENDICULAR - PECTORAL GIRDLE
   {
     id: 'bone-clavicle',
     name: 'Clavicles (L/R)',
@@ -210,7 +266,7 @@ export const bonesCatalog: BoneMetadata[] = [
     joints: ['Glenohumeral joint (humerus)', 'Acromioclavicular (AC) joint']
   },
 
-  // appendicular - upper arm
+  // APPENDICULAR - UPPER LIMBS (ARM)
   {
     id: 'bone-humerus',
     name: 'Humerus (L/R)',
@@ -236,7 +292,7 @@ export const bonesCatalog: BoneMetadata[] = [
     joints: ['Humeroulnar (elbow)', 'Radioulnar joints']
   },
 
-  // appendicular - hand
+  // APPENDICULAR - UPPER LIMBS (HAND)
   {
     id: 'bone-carpals',
     name: 'Carpals (L/R Wrist)',
@@ -262,7 +318,7 @@ export const bonesCatalog: BoneMetadata[] = [
     joints: ['Metacarpophalangeal (MCP) joints', 'Proximal/Distal Interphalangeal (PIP/DIP) joints']
   },
 
-  // appendicular - pelvis
+  // APPENDICULAR - PELVIS
   {
     id: 'bone-ilium',
     name: 'Ilium (Coxal Wings)',
@@ -288,7 +344,7 @@ export const bonesCatalog: BoneMetadata[] = [
     joints: ['Pubic symphysis', 'Acetabulum']
   },
 
-  // appendicular - leg
+  // APPENDICULAR - LOWER LIMBS (LEG)
   {
     id: 'bone-femur',
     name: 'Femur (Thigh bone)',
@@ -322,7 +378,7 @@ export const bonesCatalog: BoneMetadata[] = [
     joints: ['Tibiofibular joints']
   },
 
-  // appendicular - foot
+  // APPENDICULAR - LOWER LIMBS (FOOT)
   {
     id: 'bone-tarsals',
     name: 'Tarsals (L/R Ankle)',

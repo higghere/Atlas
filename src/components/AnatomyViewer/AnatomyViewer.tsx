@@ -843,21 +843,47 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
                     onMouseLeave={() => setHoveredOrgan(null)}
                     {...getBoneStyle('bone-vomer', '#64748b', '#020617')}
                   />
+                  {/* Hyoid Bone (Neck support) */}
+                  <path
+                    d="M -5 -158 Q 0 -155, 5 -158"
+                    onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-hyoid'); }}
+                    onMouseEnter={(e) => handleOrganHover(e, 'bone-hyoid')}
+                    onMouseMove={(e) => handleOrganHover(e, 'bone-hyoid')}
+                    onMouseLeave={() => setHoveredOrgan(null)}
+                    {...getBoneStyle('bone-hyoid', '#64748b')}
+                    strokeWidth="1.5"
+                  />
                 </g>
 
                 {/* Spine Vertebrae segments */}
                 <g strokeWidth="0.8">
-                  {/* Cervical (C1-C7) */}
-                  {[-148, -142, -136].map((y, i) => (
-                    <rect
-                      key={`c-${i}`} x="-2.5" y={y} width="5" height="4.5" rx="1"
-                      onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-cervical'); }}
-                      onMouseEnter={(e) => handleOrganHover(e, 'bone-cervical')}
-                      onMouseMove={(e) => handleOrganHover(e, 'bone-cervical')}
-                      onMouseLeave={() => setHoveredOrgan(null)}
-                      {...getBoneStyle('bone-cervical', '#64748b', '#1e293b')}
-                    />
-                  ))}
+                  {/* C1 Atlas */}
+                  <rect
+                    x="-2.5" y="-148" width="5" height="4.5" rx="1"
+                    onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-c1-atlas'); }}
+                    onMouseEnter={(e) => handleOrganHover(e, 'bone-c1-atlas')}
+                    onMouseMove={(e) => handleOrganHover(e, 'bone-c1-atlas')}
+                    onMouseLeave={() => setHoveredOrgan(null)}
+                    {...getBoneStyle('bone-c1-atlas', '#64748b', '#1e293b')}
+                  />
+                  {/* C2 Axis */}
+                  <rect
+                    x="-2.5" y="-142" width="5" height="4.5" rx="1"
+                    onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-c2-axis'); }}
+                    onMouseEnter={(e) => handleOrganHover(e, 'bone-c2-axis')}
+                    onMouseMove={(e) => handleOrganHover(e, 'bone-c2-axis')}
+                    onMouseLeave={() => setHoveredOrgan(null)}
+                    {...getBoneStyle('bone-c2-axis', '#64748b', '#1e293b')}
+                  />
+                  {/* C3-C7 Cervical spine */}
+                  <rect
+                    x="-2.5" y="-136" width="5" height="4.5" rx="1"
+                    onClick={(e) => { e.stopPropagation(); onSelectOrgan('bone-cervical'); }}
+                    onMouseEnter={(e) => handleOrganHover(e, 'bone-cervical')}
+                    onMouseMove={(e) => handleOrganHover(e, 'bone-cervical')}
+                    onMouseLeave={() => setHoveredOrgan(null)}
+                    {...getBoneStyle('bone-cervical', '#64748b', '#1e293b')}
+                  />
                   {/* Thoracic (T1-T12) */}
                   {[-130, -124, -118, -112, -106, -100, -94, -88, -82, -76, -70, -64].map((y, i) => (
                     <rect
