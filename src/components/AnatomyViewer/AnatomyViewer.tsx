@@ -4,7 +4,7 @@ import { Eye, EyeOff, Search, Network } from 'lucide-react';
 import { bonesCatalog, BoneMetadata } from '../../data/bones';
 import { Registry } from '../../engine/ecs/Registry';
 import { SceneGraph } from '../../engine/scene/SceneNode';
-import { RenderPipeline } from '../../engine/renderer/RenderPipeline';
+import { RenderPipeline, BoneComponent } from '../../engine/renderer/RenderPipeline';
 import { SceneInitializer } from '../../engine/ecs/SceneInitializer';
 
 interface AnatomyViewerProps {
@@ -51,7 +51,7 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
   const [showNerves, setShowNerves] = useState(true);
 
   const [treeSearch, setTreeSearch] = useState('');
-  const [view, setView] = useState<'anterior' | 'posterior' | 'leftLateral' | 'rightLateral' | 'superior' | 'inferior'>('anterior');
+  const [view, setView] = useState<string>('anterior');
   const [hoveredLandmark, setHoveredLandmark] = useState<string | null>(null);
 
   // Emojis for system filter tabs
@@ -131,14 +131,14 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
   const renderableNodes = useMemo(() => {
     return renderPipeline.renderFrame(
       zoom,
+      view,
       visibleLayers,
       layerOpacities,
       selectedOrganId,
       hoveredOrgan?.id || null,
-      organs,
-      view
+      organs
     );
-  }, [renderPipeline, zoom, visibleLayers, layerOpacities, selectedOrganId, hoveredOrgan?.id, organs, view]);
+  }, [renderPipeline, zoom, view, visibleLayers, layerOpacities, selectedOrganId, hoveredOrgan?.id, organs]);
 
   // Dynamic selection and pathology highlighting logic
   const isHighlighted = (id: string) => {
@@ -317,21 +317,48 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
           </h4>
           {selectedOrganId ? (
             (() => {
-              const selectedBone = bonesCatalog.find(b => b.id === selectedOrganId);
-              if (selectedBone) {
+              const boneComp = registry.getComponent<BoneComponent>(selectedOrganId, 'BoneComponent');
+              if (boneComp) {
+                const desc = bonesCatalog.find(b => b.id === selectedOrganId)?.description || '';
                 return (
-                  <div className="text-[10px] text-slate-300 flex flex-col gap-1.5 bg-slate-950/40 p-2.5 rounded border border-slate-900 max-h-52 overflow-y-auto">
-                    <div className="font-bold text-cyan-400 text-xs">{selectedBone.name}</div>
-                    <div className="text-[8px] text-slate-500 uppercase font-semibold">
-                      {selectedBone.category} / {selectedBone.subCategory}
+                  <div className="text-[10px] text-slate-300 flex flex-col gap-2 bg-slate-950/40 p-2.5 rounded border border-slate-900 max-h-64 overflow-y-auto">
+                    <div className="font-bold text-cyan-400 text-xs">{boneComp.displayName}</div>
+                    <div className="text-[8px] text-slate-500 uppercase font-semibold tracking-wider">
+                      {boneComp.latinName} | Region: {boneComp.bodyRegion}
                     </div>
-                    <p className="text-slate-400 leading-relaxed mt-0.5">{selectedBone.description}</p>
-                    {selectedBone.joints.length > 0 && (
+                    <p className="text-slate-400 leading-relaxed mt-0.5">{desc}</p>
+                    
+                    <div className="grid grid-cols-2 gap-2 mt-1 border-t border-slate-900 pt-1 text-[8px] text-slate-500">
+                      <div>
+                        <span className="font-semibold uppercase block">Parent Node:</span>
+                        <span className="text-slate-400 block truncate">{boneComp.parentBone || 'None (Root)'}</span>
+                      </div>
+                      <div>
+                        <span className="font-semibold uppercase block">Pivot Point:</span>
+                        <span className="text-slate-400 block">({boneComp.pivot.x}, {boneComp.pivot.y})</span>
+                      </div>
+                    </div>
+
+                    {boneComp.children.length > 0 && (
                       <div className="mt-1">
-                        <span className="text-slate-500 font-semibold uppercase text-[8px]">Articulations:</span>
-                        <ul className="list-disc list-inside text-slate-400 mt-0.5 flex flex-col gap-0.5">
-                          {selectedBone.joints.map((joint, i) => (
-                            <li key={i}>{joint}</li>
+                        <span className="text-slate-500 font-semibold uppercase text-[8px] block">Child Nodes:</span>
+                        <span className="text-slate-400 block max-h-12 overflow-y-auto leading-relaxed">
+                          {boneComp.children.map(c => c.replace('bone-', '')).join(', ')}
+                        </span>
+                      </div>
+                    )}
+
+                    {boneComp.landmarks.length > 0 && (
+                      <div className="mt-1.5 border-t border-slate-900 pt-1.5">
+                        <span className="text-slate-500 font-semibold uppercase text-[8px] block mb-1">Active Landmarks:</span>
+                        <ul className="flex flex-col gap-1">
+                          {boneComp.landmarks.map((l, i) => (
+                            <li key={i} className="flex justify-between bg-slate-950/60 px-1.5 py-1 rounded border border-slate-900/60">
+                              <span className="font-bold text-cyan-400">{l.name}</span>
+                              <span className="text-[8px] text-slate-500 font-mono">
+                                W: ({l.worldPosition.x.toFixed(1)}, {l.worldPosition.y.toFixed(1)})
+                              </span>
+                            </li>
                           ))}
                         </ul>
                       </div>
@@ -339,25 +366,11 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
                   </div>
                 );
               }
-              const selectedOrgan = organs[selectedOrganId];
-              if (selectedOrgan) {
-                return (
-                  <div className="text-[10px] text-slate-300 flex flex-col gap-1.5 bg-slate-950/40 p-2.5 rounded border border-slate-900">
-                    <div className="font-bold text-medical-400 text-xs">{selectedOrgan.name}</div>
-                    <div className="text-[8px] text-slate-500 uppercase font-semibold">
-                      Visceral Organ
-                    </div>
-                    <div>Health: <strong className="text-emerald-400">{selectedOrgan.temporary.health.toFixed(0)}%</strong></div>
-                    <div>Perfusion: <strong>{selectedOrgan.temporary.perfusion.toFixed(0)}%</strong></div>
-                    <div>Oxygenation: <strong>{selectedOrgan.temporary.oxygenation.toFixed(0)}%</strong></div>
-                  </div>
-                );
-              }
               return <div className="text-slate-500 text-xs italic">Unknown element.</div>;
             })()
           ) : (
             <div className="text-slate-500 text-[10px] italic bg-slate-950/20 p-2.5 rounded border border-slate-900/40 text-center">
-              Select any bone or organ to inspect its anatomy.
+              Select any bone to inspect its coordinate structures.
             </div>
           )}
         </div>
@@ -385,21 +398,24 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
               </button>
             ))}
           </div>
-          <div className="flex items-center gap-1 bg-slate-900/60 border border-slate-800 p-0.5 rounded-lg z-10">
-            {(['anterior', 'posterior', 'leftLateral', 'rightLateral', 'superior', 'inferior'] as const).map(v => (
-              <button
-                key={v}
-                onClick={() => setView(v)}
-                className={`px-2 py-1 rounded text-[8px] font-bold uppercase tracking-wider transition-all duration-150 ${
-                  view === v
-                    ? 'bg-medical-500/25 text-medical-300 border border-medical-500/40 shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200 border border-transparent'
-                }`}
-              >
-                {v.replace('Lateral', ' Lat')}
-              </button>
+          <select
+            value={view}
+            onChange={(e) => setView(e.target.value)}
+            className="glass-input text-[10px] uppercase font-bold tracking-wider rounded px-2.5 py-1.5 bg-slate-900 border border-slate-800 text-slate-300 hover:text-white cursor-pointer"
+          >
+            {[
+              { id: 'anterior', name: 'Anterior (Front)' },
+              { id: 'posterior', name: 'Posterior (Back)' },
+              { id: 'leftLateral', name: 'Left Lateral (Profile)' },
+              { id: 'rightLateral', name: 'Right Lateral (Profile)' },
+              { id: 'superior', name: 'Superior (Top)' },
+              { id: 'inferior', name: 'Inferior (Bottom)' }
+            ].map(v => (
+              <option key={v.id} value={v.id} className="bg-slate-950 text-slate-300 font-sans text-xs">
+                {v.name}
+              </option>
             ))}
-          </div>
+          </select>
         </div>
 
         {/* Viewport canvas */}

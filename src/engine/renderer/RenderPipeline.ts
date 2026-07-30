@@ -3,20 +3,33 @@ import { SceneGraph } from '../scene/SceneNode';
 import { TransformComponent } from '../transforms/TRS';
 import { IComponent } from '../ecs/Registry';
 
+export interface Landmark {
+  name: string;
+  localPosition: { x: number; y: number };
+  worldPosition: { x: number; y: number };
+}
+
+export interface BoneComponent extends IComponent {
+  readonly type: 'BoneComponent';
+  id: string;
+  displayName: string;
+  latinName: string;
+  bodyRegion: string;
+  parentBone: string | null;
+  children: string[];
+  landmarks: Landmark[];
+  boundingBox: { minX: number; minY: number; maxX: number; maxY: number };
+  pivot: { x: number; y: number };
+  rotation: number;
+  defaultVisibility: boolean;
+}
+
 export interface RenderComponent extends IComponent {
   readonly type: 'RenderComponent';
   name: string;
-  svgPath: string; // fallback/anterior path
-  views?: {
-    anterior?: string;
-    posterior?: string;
-    leftLateral?: string;
-    rightLateral?: string;
-    superior?: string;
-    inferior?: string;
-  };
-  lodMin: number;
-  lodMax: number;
+  svgPaths: Record<string, string>; // Maps views ('anterior', 'posterior', 'leftLateral', 'rightLateral', 'superior', 'inferior') to paths
+  lodMin: number; // minimum LOD level (e.g. 0 to 4)
+  lodMax: number; // maximum LOD level
   layerType: 'skin' | 'fat' | 'muscle' | 'skeleton' | 'cardio' | 'respiratory' | 'digestive' | 'urinary' | 'endocrine' | 'lymphatic' | 'nerves';
   baseFill: string;
   baseStroke: string;
@@ -47,57 +60,29 @@ export class RenderPipeline {
     this.sceneGraph = sceneGraph;
   }
 
+  /**
+   * Orchestrates the standard frame update:
+   * SceneGraph Update -> LOD Check -> Layer Toggles -> Highlight Resolving -> Output list
+   */
   public renderFrame(
     zoom: number,
+    view: string,
     visibleLayers: Set<string>,
     layerOpacities: Record<string, number>,
     selectedEntityId: Entity | null,
     hoveredEntityId: Entity | null,
-    organsState: Record<string, any>,
-    selectedView: 'anterior' | 'posterior' | 'leftLateral' | 'rightLateral' | 'superior' | 'inferior' = 'anterior'
+    organsState: Record<string, any>
   ): RenderableNode[] {
-    // A. Apply view-specific transform modifications to the root "body" node
-    const bodyTransform = this.registry.getComponent<TransformComponent>('body', 'TransformComponent');
-    if (bodyTransform) {
-      if (selectedView === 'posterior') {
-        bodyTransform.trs.scale.x = -1.0;
-        bodyTransform.trs.scale.y = 1.0;
-        bodyTransform.trs.position.x = 0;
-      } else if (selectedView === 'leftLateral') {
-        bodyTransform.trs.scale.x = 0.45;
-        bodyTransform.trs.scale.y = 1.0;
-        bodyTransform.trs.position.x = -15;
-      } else if (selectedView === 'rightLateral') {
-        bodyTransform.trs.scale.x = -0.45;
-        bodyTransform.trs.scale.y = 1.0;
-        bodyTransform.trs.position.x = 15;
-      } else if (selectedView === 'superior') {
-        bodyTransform.trs.scale.x = 1.0;
-        bodyTransform.trs.scale.y = 0.35;
-        bodyTransform.trs.position.y = -80;
-      } else if (selectedView === 'inferior') {
-        bodyTransform.trs.scale.x = 1.0;
-        bodyTransform.trs.scale.y = -0.35;
-        bodyTransform.trs.position.y = 80;
-      } else {
-        // Anterior (standard)
-        bodyTransform.trs.scale.x = 1.0;
-        bodyTransform.trs.scale.y = 1.0;
-        bodyTransform.trs.position.x = 0;
-        bodyTransform.trs.position.y = 0;
-      }
-    }
-
     // 1. Update World Matrices via TRS SceneGraph traversal
     this.sceneGraph.updateWorldMatrices();
 
     // 2. Query all renderable entities
     const renderEntities = this.registry.query(['RenderComponent', 'TransformComponent']);
 
-    // 3. Resolve LOD Index (0: entire, 1: major, 2: individual, 3: landmarks, 4: surface)
+    // 3. Resolve LOD Index (0: Entire skeleton, 1: Major bones, 2: Individual bones, 3: Landmarks, 4: Surface features)
     let currentLod = 0;
-    if (zoom > 8.0) currentLod = 4;
-    else if (zoom > 4.5) currentLod = 3;
+    if (zoom > 6.0) currentLod = 4;
+    else if (zoom > 3.5) currentLod = 3;
     else if (zoom > 2.0) currentLod = 2;
     else if (zoom > 1.0) currentLod = 1;
 
@@ -106,7 +91,7 @@ export class RenderPipeline {
       if (!selectedEntityId) return true;
       if (selectedEntityId === id) return true;
 
-      // Highlight skeletal groupings
+      // Group highlights
       if (selectedEntityId.startsWith('bone-sternum') || selectedEntityId.startsWith('bone-ribs')) {
         return ['bone-sternum-manubrium', 'bone-sternum-body', 'bone-sternum-xiphoid', 'bone-ribs-true', 'bone-ribs-false', 'bone-ribs-floating'].includes(id);
       }
@@ -115,11 +100,25 @@ export class RenderPipeline {
 
     const renderables: RenderableNode[] = [];
 
+    // 4. Update Landmark World Coordinates using computed bone matrices
+    for (const entity of renderEntities) {
+      const transform = this.registry.getComponent<TransformComponent>(entity, 'TransformComponent');
+      const bone = this.registry.getComponent<BoneComponent>(entity, 'BoneComponent');
+      if (transform && bone) {
+        for (const landmark of bone.landmarks) {
+          landmark.worldPosition = transform.worldMatrix.transformPoint(
+            landmark.localPosition.x,
+            landmark.localPosition.y
+          );
+        }
+      }
+    }
+
     for (const entity of renderEntities) {
       const renderComp = this.registry.getComponent<RenderComponent>(entity, 'RenderComponent')!;
       const transformComp = this.registry.getComponent<TransformComponent>(entity, 'TransformComponent')!;
 
-      // A. Layer Visibility Filter
+      // A. Layer Visibility Filter (Occlusion)
       const layerActive = visibleLayers.has(renderComp.layerType);
       if (!layerActive) continue;
 
@@ -132,33 +131,22 @@ export class RenderPipeline {
       const isSelected = selectedEntityId === entity;
       const isHovered = hoveredEntityId === entity;
 
-      // D. Styles
+      // D. Apply multi-view path selector
+      const svgPath = renderComp.svgPaths[view] || renderComp.svgPaths['anterior'] || '';
+      if (!svgPath) continue;
+
       let fill = renderComp.baseFill;
-      let filter = isSelected ? 'url(#glow-selected)' : 'none';
+      let filter = isSelected ? 'url(#glow-selected)' : 'url(#organ-shadow)';
       let opacity = layerOpacities[renderComp.layerType] ?? 1.0;
       let className = 'transition-all duration-300 cursor-pointer';
 
+      // Apply dynamic highlighting opacity fade
       if (!highlight) {
-        opacity *= 0.25;
-      }
-      if (isHovered) {
-        filter = 'url(#glow-selected)';
+        opacity *= 0.22;
       }
 
-      // E. Resolve path based on selected view
-      let svgPath = renderComp.svgPath;
-      if (renderComp.views) {
-        if (selectedView === 'posterior' && renderComp.views.posterior) {
-          svgPath = renderComp.views.posterior;
-        } else if (selectedView === 'leftLateral' && renderComp.views.leftLateral) {
-          svgPath = renderComp.views.leftLateral;
-        } else if (selectedView === 'rightLateral' && renderComp.views.rightLateral) {
-          svgPath = renderComp.views.rightLateral;
-        } else if (selectedView === 'superior' && renderComp.views.superior) {
-          svgPath = renderComp.views.superior;
-        } else if (selectedView === 'inferior' && renderComp.views.inferior) {
-          svgPath = renderComp.views.inferior;
-        }
+      if (isHovered) {
+        filter = 'url(#glow-selected)';
       }
 
       renderables.push({
