@@ -682,17 +682,18 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
 
           {/* ═══════════════════════════════════════════════════════════════════
                HYBRID RENDER: PNG BASE + SVG HIT-ZONE OVERLAY
-               The Innerbody PNG provides medical-grade visual accuracy.
+               PNG uses invert+screen blend to eliminate white bg on dark theme.
                SVG polygons layered on top provide full interactivity.
           ════════════════════════════════════════════════════════════════════ */}
           <div
             style={{
               transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
               transition: isDragging ? 'none' : 'transform 0.15s ease-out',
-              width: '340px',
-              height: '560px',
               position: 'relative',
-              flexShrink: 0
+              flexShrink: 0,
+              height: '100%',
+              aspectRatio: '340 / 560',
+              maxHeight: '90%',
             }}
           >
             {/* LAYER 1: INNERBODY REFERENCE PNG */}
@@ -707,9 +708,11 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
                   height: '100%',
                   objectFit: 'contain',
                   opacity: refImageOpacity,
-                  filter: activeSystemId === 'skeletal'
-                    ? 'brightness(1.05) contrast(1.1)'
-                    : 'brightness(0.9) contrast(1.0)',
+                  // Invert turns white→black, then screen blend makes black
+                  // transparent on any dark background. Bones emerge as glowing
+                  // teal/amber highlights matching the medical UI theme.
+                  filter: `invert(1) brightness(${activeSystemId === 'skeletal' ? 1.15 : 1.0}) contrast(1.1) saturate(1.3)`,
+                  mixBlendMode: 'screen',
                   transition: 'opacity 0.4s ease, filter 0.4s ease',
                   userSelect: 'none',
                   pointerEvents: 'none'
@@ -719,11 +722,11 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
             )}
 
             {/* LAYER 2: SVG INTERACTIVE HIT-ZONES */}
-            {/* Coordinates are calibrated to 340×560 container matching the PNG */}
+            {/* viewBox matches PNG aspect ratio — 340×560 virtual units */}
             <svg
               viewBox="0 0 340 560"
-              width="340"
-              height="560"
+              width="100%"
+              height="100%"
               style={{ position: 'absolute', inset: 0, overflow: 'visible' }}
             >
               <defs>
@@ -748,52 +751,51 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
                   x?: number; y?: number; w?: number; h?: number;
                   points?: string;
                 }> = [
-                  // ── SKULL & HEAD ──
-                  { id: 'bone-skull',    label: 'Skull (Cranium)',         type: 'ellipse', cx: 170, cy: 44,  rx: 38, ry: 42 },
-                  { id: 'bone-mandible', label: 'Mandible (Jaw)',          type: 'ellipse', cx: 170, cy: 84,  rx: 22, ry: 14 },
+                  // ── SKULL / CRANIUM (maps to frontal bone – largest cranial target) ──
+                  { id: 'bone-frontal',   label: 'Skull — Frontal Bone',           type: 'ellipse', cx: 170, cy: 38,  rx: 30, ry: 26 },
+                  { id: 'bone-parietal',  label: 'Skull — Parietal Bones',         type: 'ellipse', cx: 170, cy: 22,  rx: 28, ry: 14 },
+                  { id: 'bone-temporal',  label: 'Skull — Temporal Bones',         type: 'ellipse', cx: 148, cy: 52,  rx: 14, ry: 20 },
+                  { id: 'bone-occipital', label: 'Skull — Occipital Bone',         type: 'ellipse', cx: 192, cy: 52,  rx: 14, ry: 20 },
+                  { id: 'bone-mandible',  label: 'Mandible (Jawbone)',             type: 'ellipse', cx: 170, cy: 82,  rx: 22, ry: 13 },
+                  { id: 'bone-maxilla',   label: 'Maxilla (Upper Jaw)',            type: 'ellipse', cx: 170, cy: 72,  rx: 14,  ry: 8  },
+                  { id: 'bone-zygomatic', label: 'Zygomatic (Cheekbone)',          type: 'ellipse', cx: 148, cy: 66,  rx: 10,  ry: 8  },
                   // ── CERVICAL SPINE ──
-                  { id: 'bone-cervical-vertebrae', label: 'Cervical Spine (C1–C7)', type: 'ellipse', cx: 170, cy: 108, rx: 10, ry: 16 },
+                  { id: 'bone-cervical',  label: 'Cervical Spine (C1–C7)',         type: 'ellipse', cx: 170, cy: 104, rx: 9,  ry: 16 },
                   // ── SHOULDER GIRDLE ──
-                  { id: 'bone-clavicle', label: 'Clavicles (Collarbones)', type: 'polygon', points: '118,128 155,118 185,118 222,128 220,134 185,124 155,124' },
-                  { id: 'bone-scapula',  label: 'Scapulae (Shoulder Blades)', type: 'ellipse', cx: 113, cy: 165, rx: 22, ry: 28 },
+                  { id: 'bone-clavicle',  label: 'Clavicles (Collarbones)',        type: 'polygon', points: '120,126 155,116 185,116 220,126 218,133 185,122 155,122' },
+                  { id: 'bone-scapula',   label: 'Scapulae (Shoulder Blades)',     type: 'ellipse', cx: 112, cy: 162, rx: 22, ry: 28 },
                   // ── THORAX ──
-                  { id: 'bone-sternum',  label: 'Sternum (Breastbone)',    type: 'rect', x: 158, y: 130, w: 24, h: 72 },
-                  { id: 'bone-ribs',     label: 'Rib Cage (Ribs 1–12)',    type: 'polygon', points: '130,130 170,126 200,126 215,130 220,175 210,210 175,220 155,220 130,210 120,175' },
-                  // ── THORACIC & LUMBAR SPINE ──
-                  { id: 'bone-thoracic-vertebrae', label: 'Thoracic Spine (T1–T12)', type: 'ellipse', cx: 170, cy: 182, rx: 9,  ry: 42 },
-                  { id: 'bone-lumbar-vertebrae',   label: 'Lumbar Spine (L1–L5)',    type: 'ellipse', cx: 170, cy: 244, rx: 9,  ry: 28 },
+                  { id: 'bone-sternum-manubrium', label: 'Manubrium (Top Sternum)', type: 'rect', x: 160, y: 126, w: 20, h: 22 },
+                  { id: 'bone-sternum-body',      label: 'Sternum Body',            type: 'rect', x: 160, y: 148, w: 18, h: 48 },
+                  { id: 'bone-sternum-xiphoid',   label: 'Xiphoid Process',         type: 'ellipse', cx: 170, cy: 204, rx: 7, ry: 8 },
+                  { id: 'bone-ribs-true',    label: 'True Ribs (1–7)',             type: 'polygon', points: '132,128 168,124 172,124 210,128 218,172 212,200 175,208 165,208 128,200 122,172' },
+                  { id: 'bone-ribs-false',   label: 'False Ribs (8–10)',           type: 'polygon', points: '128,200 165,208 175,208 212,200 214,220 170,228 126,220' },
+                  { id: 'bone-ribs-floating', label: 'Floating Ribs (11–12)',      type: 'polygon', points: '135,220 170,228 205,220 200,238 170,244 140,238' },
+                  // ── THORACIC SPINE ──
+                  { id: 'bone-thoracic',  label: 'Thoracic Spine (T1–T12)',        type: 'ellipse', cx: 170, cy: 175, rx: 8,  ry: 40 },
+                  // ── LUMBAR SPINE ──
+                  { id: 'bone-lumbar',    label: 'Lumbar Spine (L1–L5)',           type: 'ellipse', cx: 170, cy: 240, rx: 8,  ry: 26 },
                   // ── PELVIS ──
-                  { id: 'bone-ilium',   label: 'Ilium (Hip Bone)',         type: 'ellipse', cx: 148, cy: 290, rx: 30, ry: 22 },
-                  { id: 'bone-sacrum',  label: 'Sacrum',                   type: 'ellipse', cx: 170, cy: 295, rx: 16, ry: 20 },
-                  { id: 'bone-pubis',   label: 'Pubic Symphysis',          type: 'ellipse', cx: 170, cy: 316, rx: 18, ry: 10 },
-                  // ── UPPER LIMBS – LEFT (viewer's right) ──
-                  { id: 'bone-humerus-l', label: 'Left Humerus (Upper Arm)', type: 'ellipse', cx: 102, cy: 215, rx: 12, ry: 48 },
-                  { id: 'bone-radius-l',  label: 'Left Radius (Forearm)',    type: 'ellipse', cx: 96,  cy: 296, rx: 8,  ry: 40 },
-                  { id: 'bone-ulna-l',    label: 'Left Ulna (Forearm)',      type: 'ellipse', cx: 87,  cy: 296, rx: 7,  ry: 40 },
-                  { id: 'bone-carpals-l', label: 'Left Wrist (Carpals)',     type: 'ellipse', cx: 88,  cy: 348, rx: 12, ry: 10 },
-                  { id: 'bone-metacarpals-l', label: 'Left Hand (Metacarpals)', type: 'ellipse', cx: 83, cy: 370, rx: 14, ry: 14 },
-                  { id: 'bone-phalanges-l',   label: 'Left Fingers (Phalanges)', type: 'ellipse', cx: 78, cy: 395, rx: 18, ry: 16 },
-                  // ── UPPER LIMBS – RIGHT (viewer's left) ──
-                  { id: 'bone-humerus-r', label: 'Right Humerus (Upper Arm)', type: 'ellipse', cx: 238, cy: 215, rx: 12, ry: 48 },
-                  { id: 'bone-radius-r',  label: 'Right Radius (Forearm)',    type: 'ellipse', cx: 244, cy: 296, rx: 8,  ry: 40 },
-                  { id: 'bone-ulna-r',    label: 'Right Ulna (Forearm)',      type: 'ellipse', cx: 253, cy: 296, rx: 7,  ry: 40 },
-                  { id: 'bone-carpals-r', label: 'Right Wrist (Carpals)',     type: 'ellipse', cx: 252, cy: 348, rx: 12, ry: 10 },
-                  { id: 'bone-metacarpals-r', label: 'Right Hand (Metacarpals)', type: 'ellipse', cx: 257, cy: 370, rx: 14, ry: 14 },
-                  { id: 'bone-phalanges-r',   label: 'Right Fingers (Phalanges)', type: 'ellipse', cx: 262, cy: 395, rx: 18, ry: 16 },
-                  // ── LOWER LIMBS – LEFT ──
-                  { id: 'bone-femur-l',   label: 'Left Femur (Thigh Bone)',  type: 'ellipse', cx: 148, cy: 385, rx: 18, ry: 56 },
-                  { id: 'bone-patella-l', label: 'Left Patella (Kneecap)',   type: 'ellipse', cx: 148, cy: 446, rx: 11, ry: 11 },
-                  { id: 'bone-tibia-l',   label: 'Left Tibia (Shin Bone)',   type: 'ellipse', cx: 146, cy: 490, rx: 11, ry: 40 },
-                  { id: 'bone-fibula-l',  label: 'Left Fibula',              type: 'ellipse', cx: 136, cy: 490, rx: 6,  ry: 38 },
-                  { id: 'bone-tarsals-l', label: 'Left Ankle (Tarsals)',     type: 'ellipse', cx: 144, cy: 534, rx: 13, ry: 10 },
-                  { id: 'bone-metatarsals-l', label: 'Left Foot (Metatarsals)', type: 'ellipse', cx: 148, cy: 548, rx: 16, ry: 10 },
-                  // ── LOWER LIMBS – RIGHT ──
-                  { id: 'bone-femur-r',   label: 'Right Femur (Thigh Bone)', type: 'ellipse', cx: 192, cy: 385, rx: 18, ry: 56 },
-                  { id: 'bone-patella-r', label: 'Right Patella (Kneecap)',  type: 'ellipse', cx: 192, cy: 446, rx: 11, ry: 11 },
-                  { id: 'bone-tibia-r',   label: 'Right Tibia (Shin Bone)',  type: 'ellipse', cx: 194, cy: 490, rx: 11, ry: 40 },
-                  { id: 'bone-fibula-r',  label: 'Right Fibula',             type: 'ellipse', cx: 204, cy: 490, rx: 6,  ry: 38 },
-                  { id: 'bone-tarsals-r', label: 'Right Ankle (Tarsals)',    type: 'ellipse', cx: 196, cy: 534, rx: 13, ry: 10 },
-                  { id: 'bone-metatarsals-r', label: 'Right Foot (Metatarsals)', type: 'ellipse', cx: 192, cy: 548, rx: 16, ry: 10 },
+                  { id: 'bone-ilium',     label: 'Ilium (Hip Bone)',               type: 'ellipse', cx: 150, cy: 288, rx: 28, ry: 22 },
+                  { id: 'bone-sacrum',    label: 'Sacrum',                          type: 'ellipse', cx: 170, cy: 292, rx: 14, ry: 20 },
+                  { id: 'bone-pubis',     label: 'Pubic Symphysis',                type: 'ellipse', cx: 170, cy: 314, rx: 16, ry: 9  },
+                  { id: 'bone-ischium',   label: 'Ischium (Sitting Bone)',         type: 'ellipse', cx: 150, cy: 310, rx: 12, ry: 10 },
+                  { id: 'bone-coccyx',    label: 'Coccyx (Tailbone)',              type: 'ellipse', cx: 170, cy: 314, rx: 6,  ry: 7  },
+                  // ── UPPER LIMBS (ECS uses single entity per bone, bilateral) ──
+                  { id: 'bone-humerus',   label: 'Humerus (Upper Arm)',            type: 'ellipse', cx: 102, cy: 215, rx: 12, ry: 48 },
+                  { id: 'bone-radius',    label: 'Radius (Forearm)',               type: 'ellipse', cx: 94,  cy: 295, rx: 7,  ry: 38 },
+                  { id: 'bone-ulna',      label: 'Ulna (Forearm)',                 type: 'ellipse', cx: 85,  cy: 295, rx: 6,  ry: 38 },
+                  { id: 'bone-carpals',   label: 'Wrist (Carpals)',                type: 'ellipse', cx: 87,  cy: 347, rx: 11, ry: 9  },
+                  { id: 'bone-metacarpals', label: 'Hand (Metacarpals)',           type: 'ellipse', cx: 82,  cy: 368, rx: 13, ry: 13 },
+                  { id: 'bone-phalanges-hand', label: 'Finger Bones (Phalanges)', type: 'ellipse', cx: 77,  cy: 394, rx: 17, ry: 15 },
+                  // ── LOWER LIMBS ──
+                  { id: 'bone-femur',     label: 'Femur (Thigh Bone)',             type: 'ellipse', cx: 148, cy: 385, rx: 17, ry: 54 },
+                  { id: 'bone-patella',   label: 'Patella (Kneecap)',              type: 'ellipse', cx: 148, cy: 445, rx: 10, ry: 10 },
+                  { id: 'bone-tibia',     label: 'Tibia (Shin Bone)',              type: 'ellipse', cx: 146, cy: 490, rx: 10, ry: 39 },
+                  { id: 'bone-fibula',    label: 'Fibula',                         type: 'ellipse', cx: 135, cy: 490, rx: 5,  ry: 37 },
+                  { id: 'bone-tarsals',   label: 'Ankle (Tarsals)',                type: 'ellipse', cx: 144, cy: 533, rx: 12, ry: 9  },
+                  { id: 'bone-metatarsals', label: 'Foot (Metatarsals)',           type: 'ellipse', cx: 148, cy: 547, rx: 15, ry: 9  },
+                  { id: 'bone-phalanges-foot', label: 'Toe Bones (Phalanges)',    type: 'ellipse', cx: 148, cy: 558, rx: 14, ry: 6  },
                 ];
 
                 return hitZones.map(zone => {
