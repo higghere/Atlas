@@ -18,8 +18,29 @@ export default function App() {
   // Navigation & Page State
   const [activeTab, setActiveTab] = useState<NavTabId>('patient-profile');
 
-  // Master EHR Patient Profile
-  const [patientEHR, setPatientEHR] = useState<PatientEHR>(() => EHRCalculationsEngine.createDefaultProfile('John Doe (Baseline)'));
+  // Master EHR Patient Profile with persistent storage hydration
+  const [patientEHR, setPatientEHR] = useState<PatientEHR>(() => {
+    try {
+      const saved = localStorage.getItem('human_atlas_patient_ehr');
+      if (saved) {
+        console.log('[App] Loaded Patient Profile from LocalStorage.');
+        return JSON.parse(saved);
+      }
+    } catch (e) {
+      console.error('[App] Failed to load Patient Profile from LocalStorage:', e);
+    }
+    return EHRCalculationsEngine.createDefaultProfile('John Doe (Baseline)');
+  });
+
+  // Debug logger for master patientEHR state changes
+  useEffect(() => {
+    console.log('[App useEffect] Master patientEHR state updated:', {
+      name: patientEHR.patientName,
+      conditions: patientEHR.medicalConditions.map(c => c.name),
+      medications: patientEHR.medications.map(m => m.genericName),
+      labs: patientEHR.labResults
+    });
+  }, [patientEHR]);
 
   // React state mirror
   const [tickCount, setTickCount] = useState(0);
@@ -86,6 +107,67 @@ export default function App() {
     setIsPlaying(false);
     clockRef.current.restoreTick(tick);
     syncWithEngine();
+  };
+
+  // Master EHR update handler that propagates to simulation engine & storage
+  const handleMasterEHRUpdate = (updated: PatientEHR) => {
+    console.log('[App] 4. Global State Updated:', updated.patientName);
+    setPatientEHR(updated);
+
+    // Persist to LocalStorage
+    try {
+      localStorage.setItem('human_atlas_patient_ehr', JSON.stringify(updated));
+      console.log('[App] 5. Storage Updated');
+    } catch (e) {
+      console.error('[App] Storage update failed:', e);
+    }
+
+    // Sync Simulation Clock Engine
+    const clock = clockRef.current;
+    if (updated.labResults?.cmp?.glucoseMgDl) {
+      clock.blood.substances.glucose = updated.labResults.cmp.glucoseMgDl;
+    }
+    if (updated.labResults?.cmp?.creatinineMgDl) {
+      clock.blood.substances.creatinine = updated.labResults.cmp.creatinineMgDl;
+    }
+    if (updated.labResults?.cbc?.hemoglobinGDl) {
+      clock.blood.substances.oxygen = Math.round((updated.labResults.cbc.hemoglobinGDl / 14) * 98);
+    }
+
+    // Apply active conditions to simulation clock & reset inactive ones
+    const hasDiabetes = updated.medicalConditions.some(c => c.name.toLowerCase().includes('diabetes'));
+    const hasCKD = updated.medicalConditions.some(c => c.name.toLowerCase().includes('kidney') || c.name.toLowerCase().includes('ckd'));
+    const hasHeartFailure = updated.medicalConditions.some(c => c.name.toLowerCase().includes('heart failure'));
+
+    if (hasHeartFailure) {
+      clock.activeDisease = 'heart_failure';
+    } else if (hasDiabetes) {
+      clock.activeDisease = 'diabetes';
+    } else if (hasCKD) {
+      clock.activeDisease = 'ckd';
+    } else {
+      clock.activeDisease = null;
+      clock.activeDiseaseSeverity = 0.0;
+    }
+
+    // Reset organs if normal renal function
+    if (!hasCKD && clock.organs.kidney) {
+      clock.organs.kidney.temporary.health = 100;
+      clock.organs.kidney.temporary.perfusion = 100;
+      clock.organs.kidney.temporary.inflammation = 0;
+    }
+
+    // Apply medications to simulation engine
+    clock.activeMeds = {};
+    updated.medications.forEach(m => {
+      clock.activeMeds[m.genericName.toLowerCase()] = m.dose;
+    });
+
+    clock.logs.push(`[Digital Twin Integration] Active patient profile updated: ${updated.patientName}`);
+    console.log('[App] 6. Simulation Engine & Organs Synchronized');
+
+    syncWithEngine();
+    console.log('[App] 7. UI Components Refreshed');
   };
 
   const handleProfileChange = (updatedProfile: UserProfile) => {
@@ -166,7 +248,7 @@ export default function App() {
         <main className="flex-1 overflow-hidden">
           <PatientProfilePage
             currentProfile={patientEHR}
-            onUpdateProfile={setPatientEHR}
+            onUpdateProfile={handleMasterEHRUpdate}
           />
         </main>
       ) : activeTab === 'anatomy' || activeTab === 'home' || activeTab === 'simulation' ? (

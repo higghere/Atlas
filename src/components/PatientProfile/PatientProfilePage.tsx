@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { PatientEHR, MedicalCondition, MedicationEntry, SurgicalProcedure, VaccinationEntry, AllergyEntry, FamilyHistoryEntry } from '../../types/patientEHR';
 import { EHRCalculationsEngine } from '../../utils/ehrCalculations';
+import { MedicalRecordsWorkspace } from '../MedicalRecords/MedicalRecordsWorkspace';
 import {
   User, Activity, Heart, Shield, Plus, Trash2, Copy, Download, Upload, Save, CheckCircle2, AlertTriangle, Scale, Flame, Droplet, Stethoscope, Syringe, Pill, FileText, ChevronDown, ChevronRight, Target, Sparkles
 } from 'lucide-react';
@@ -15,7 +16,14 @@ export const PatientProfilePage: React.FC<PatientProfilePageProps> = ({
   onUpdateProfile,
 }) => {
   const [profile, setProfile] = useState<PatientEHR>(currentProfile);
-  const [activeSection, setActiveSection] = useState<string>('demographics');
+
+  // Sync internal state whenever currentProfile prop updates from parent / AI ingestion
+  React.useEffect(() => {
+    console.log('[PatientProfilePage] Recieved updated currentProfile prop:', currentProfile.patientName);
+    setProfile(currentProfile);
+  }, [currentProfile]);
+
+  const [activeSection, setActiveSection] = useState<string>('medical-records');
   const [saveNotification, setSaveNotification] = useState<string | null>(null);
 
   // Sync state changes upward to main app state
@@ -142,6 +150,30 @@ export const PatientProfilePage: React.FC<PatientProfilePageProps> = ({
             <span>{saveNotification}</span>
           </div>
         )}
+
+        {/* Section 0: Medical Records AI Document Intelligence Workspace (Collapsible) */}
+        <div className="glass-panel p-4 flex flex-col gap-3">
+          <div
+            onClick={() => setActiveSection(activeSection === 'medical-records' ? '' : 'medical-records')}
+            className="flex items-center justify-between cursor-pointer border-b border-slate-900 pb-2 select-none"
+          >
+            <h3 className="text-xs font-extrabold uppercase tracking-wider text-cyan-400 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-cyan-400" /> Medical Document Intelligence & AI Ingestion Hub
+            </h3>
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-400">
+              <span className="text-[10px] px-2 py-0.5 rounded bg-cyan-950 border border-cyan-800 text-cyan-400 font-mono">
+                {activeSection === 'medical-records' ? 'Collapse Hub' : 'Expand Ingestion Hub'}
+              </span>
+              <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${activeSection === 'medical-records' ? 'rotate-180 text-cyan-400' : ''}`} />
+            </div>
+          </div>
+
+          {activeSection === 'medical-records' && (
+            <div className="mt-2 animate-fade-in">
+              <MedicalRecordsWorkspace currentProfile={profile} onUpdateProfile={onUpdateProfile} />
+            </div>
+          )}
+        </div>
 
         {/* Section 1: Demographics */}
         <div className="glass-panel p-4">
