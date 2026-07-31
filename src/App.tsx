@@ -12,12 +12,13 @@ import { PatientProfilePage } from './components/PatientProfile/PatientProfilePa
 import { Heart, Activity, LineChart, Shield, Info, AlertTriangle } from 'lucide-react';
 import { Line } from 'react-chartjs-2';
 import { PredictiveLaboratoryView } from './components/Laboratory/PredictiveLaboratoryView';
+import { HomePage } from './components/Home/HomePage';
 
 export default function App() {
   const clockRef = useRef<SimulationClock>(new SimulationClock());
   
-  // Navigation & Page State
-  const [activeTab, setActiveTab] = useState<NavTabId>('patient-profile');
+  // Navigation & Page State (Defaults to 'home' as per user requirement)
+  const [activeTab, setActiveTab] = useState<NavTabId>('home');
 
   // Master EHR Patient Profile with persistent storage hydration
   const [patientEHR, setPatientEHR] = useState<PatientEHR>(() => {
@@ -252,7 +253,11 @@ export default function App() {
       />
 
       {/* PAGE SWITCHER */}
-      {activeTab === 'patient-profile' ? (
+      {activeTab === 'home' ? (
+        <main className="flex-1 overflow-y-auto">
+          <HomePage onNavigate={(tab) => setActiveTab(tab)} />
+        </main>
+      ) : activeTab === 'patient-profile' ? (
         /* Standalone Patient Profile EHR Page */
         <main className="flex-1 overflow-hidden">
           <PatientProfilePage
@@ -260,7 +265,7 @@ export default function App() {
             onUpdateProfile={handleMasterEHRUpdate}
           />
         </main>
-      ) : activeTab === 'anatomy' || activeTab === 'home' || activeTab === 'simulation' ? (
+      ) : activeTab === 'anatomy' || activeTab === 'simulation' ? (
         /* Main Anatomy & Simulation Workspace */
         <main className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 overflow-hidden">
           {/* Left Side: Scenario Builder & Controls (3 cols) */}
