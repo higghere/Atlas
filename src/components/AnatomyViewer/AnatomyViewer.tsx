@@ -39,6 +39,10 @@ interface AnatomyViewerProps {
   activeSystemId: string;
   onSelectSystem: (id: string) => void;
   activeMeds: Record<string, number>;
+  isDeceased?: boolean;
+  clinicalDeathCause?: string;
+  clinicalDeathTime?: string;
+  onReplayTimeline?: () => void;
 }
 
 export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
@@ -47,7 +51,11 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
   onSelectOrgan,
   activeSystemId,
   onSelectSystem,
-  activeMeds
+  activeMeds,
+  isDeceased,
+  clinicalDeathCause,
+  clinicalDeathTime,
+  onReplayTimeline
 }) => {
   // Phase 4 Cardiovascular state
   const [selectedVesselId, setSelectedVesselId] = useState<string | null>(null);
@@ -1242,6 +1250,46 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
           {hoveredLandmark && (
             <div className="absolute top-16 right-4 px-3 py-1.5 bg-slate-950/90 border border-cyan-800/60 text-cyan-400 rounded-lg text-[9px] uppercase font-bold tracking-wider shadow-md backdrop-blur-sm animate-pulse">
               Landmark: {hoveredLandmark}
+            </div>
+          )}
+
+          {/* Clinical Death Viewport Translucent Overlay Modal (v21.2) */}
+          {isDeceased && (
+            <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm z-30 flex items-center justify-center p-6 pointer-events-auto">
+              <div className="max-w-md w-full glass-panel p-6 border border-red-900/60 rounded-2xl shadow-2xl flex flex-col gap-4 text-center">
+                <div className="w-12 h-12 rounded-2xl bg-red-950/60 border border-red-800/80 flex items-center justify-center mx-auto text-red-500 text-xl font-bold animate-pulse">
+                  ⚫
+                </div>
+                <div>
+                  <h2 className="text-base font-black uppercase tracking-widest text-red-400">PATIENT DECEASED</h2>
+                  <div className="flex items-center justify-center gap-3 text-[10px] font-mono text-slate-400 mt-1">
+                    <span>Declared at: <strong className="text-slate-200">{clinicalDeathTime || '08:43:17'}</strong></span>
+                    <span>Elapsed Time: <strong className="text-slate-200">12m 41s</strong></span>
+                  </div>
+                  <p className="text-xs text-slate-300 mt-2 font-mono">
+                    Cause: <strong className="text-red-400">{clinicalDeathCause || 'Hemorrhagic Shock'}</strong>
+                  </p>
+                </div>
+                <div className="text-[10px] text-slate-500 font-mono bg-slate-950 p-2.5 rounded-xl border border-slate-900">
+                  Simulation continues for post-event analysis. Anatomy, variables, and timelines remain interactive.
+                </div>
+                <div className="flex gap-2 justify-center">
+                  <button
+                    onClick={() => {}}
+                    className="px-4 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-200 font-bold rounded-xl text-xs transition-all"
+                  >
+                    Continue Analysis
+                  </button>
+                  {onReplayTimeline && (
+                    <button
+                      onClick={onReplayTimeline}
+                      className="px-4 py-2 bg-medical-500/20 hover:bg-medical-500/30 border border-medical-500/40 text-medical-300 font-bold rounded-xl text-xs transition-all"
+                    >
+                      Open Replay
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 

@@ -1,0 +1,15 @@
+{
+  "neural_graph": {
+    "nodes": [
+      { "id": "NRV_BRAIN", "name": "Cerebrum / Hypothalamus", "type": "brain" },
+      { "id": "NRV_BRAINSTEM", "name": "Brainstem Vasomotor Center", "type": "brainstem" },
+      { "id": "NRV_VAGUS", "name": "Vagus Nerve (Parasympathetic)", "type": "peripheral_nerve" },
+      { "id": "NRV_SYMPATHETIC_CHAIN", "name": "Sympathetic Chain", "type": "ganglia" }
+    ],
+    "edges": [
+      { "from": "NRV_BRAIN", "to": "NRV_BRAINSTEM", "signal": "autonomic_control" },
+      { "from": "NRV_BRAINSTEM", "to": "NRV_VAGUS", "signal": "inhibitory_hr" },
+      { "from": "NRV_BRAINSTEM", "to": "NRV_SYMPATHETIC_CHAIN", "signal": "excitatory_hr_bp" }
+    ]
+  }
+}

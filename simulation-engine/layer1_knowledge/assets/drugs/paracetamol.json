@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "knowledge_version": "23.1",
+  "id": "DRUG_PARACETAMOL",
+  "aliases": ["Paracetamol", "Acetaminophen", "PCM", "Tylenol"],
+  "display_name": {
+    "en": "Paracetamol",
+    "fr": "Paracétamol",
+    "es": "Paracetamol"
+  },
+  "category": "Analgesic",
+  "template": "oral_tablet",
+  "default_dose": { "amount": 500, "unit": "mg" },
+  "routes": ["oral", "iv"],
+  "pharmacokinetics": {
+    "half_life_hours": 2.5,
+    "bioavailability": 0.88,
+    "hepatic_clearance": 0.95
+  },
+  "target_systems": ["ORG_LIVER", "SYS_NERVOUS"],
+  "evidence": {
+    "source": "FDA Drug Label / WHO Essential Medicines",
+    "confidence": "HIGH",
+    "doi": "10.1016/S0140-6736(05)67488-8"
+  }
+}

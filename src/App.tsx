@@ -11,6 +11,7 @@ import { Navbar, NavTabId } from './components/Navigation/Navbar';
 import { PatientProfilePage } from './components/PatientProfile/PatientProfilePage';
 import { Heart, Activity, LineChart, Shield, Info, AlertTriangle } from 'lucide-react';
 import { Line } from 'react-chartjs-2';
+import { PredictiveLaboratoryView } from './components/Laboratory/PredictiveLaboratoryView';
 
 export default function App() {
   const clockRef = useRef<SimulationClock>(new SimulationClock());
@@ -75,11 +76,15 @@ export default function App() {
     setLogs([...clock.logs]);
     setActiveMeds({ ...clock.activeMeds });
     setActiveDisease(clock.activeDisease);
+
+    if (clock.isDeceased && isPlaying) {
+      setIsPlaying(false);
+    }
   };
 
   useEffect(() => {
     let timer: any = null;
-    if (isPlaying) {
+    if (isPlaying && !clockRef.current.isDeceased) {
       timer = setInterval(() => {
         clockRef.current.step();
         syncWithEngine();
@@ -206,7 +211,11 @@ export default function App() {
 
   // Determine systemic status descriptor
   const getSystemicStatus = () => {
-    const avgHealth = Object.values(organs).reduce((acc, o) => acc + o.temporary.health, 0) / 6;
+    if (clockRef.current.isDeceased || blood.volume < 2000 || blood.substances.oxygen < 10) {
+      return { text: 'Deceased', color: 'text-red-500 font-black' };
+    }
+    const avgHealth = Object.values(organs).reduce((acc, o) => acc + o.temporary.health, 0) / (Object.keys(organs).length || 6);
+    if (avgHealth <= 5) return { text: 'Deceased', color: 'text-red-500 font-black' };
     if (avgHealth < 40) return { text: 'Critical Shock', color: 'text-red-500' };
     if (avgHealth < 75) return { text: 'Compensating Stress', color: 'text-amber-400' };
     return { text: 'Stable Homeostasis', color: 'text-emerald-400' };
@@ -277,6 +286,10 @@ export default function App() {
               activeSystemId={activeSystemId}
               onSelectSystem={setActiveSystemId}
               activeMeds={activeMeds}
+              isDeceased={currentStatus.text === 'Deceased'}
+              clinicalDeathCause="Hemorrhagic Shock / Exsanguination"
+              clinicalDeathTime="08:43"
+              onReplayTimeline={() => handleSeek(0)}
             />
           </section>
 
@@ -289,8 +302,19 @@ export default function App() {
               currentLabs={currentLabs}
               onOrderLabs={handleOrderLabs}
               logs={logs}
+              isDeceased={clockRef.current.isDeceased || currentStatus.text === 'Deceased'}
+              clinicalDeathCause="Hemorrhagic Shock / Exsanguination"
+              clinicalDeathTime="08:43"
             />
           </section>
+        </main>
+      ) : activeTab === 'laboratory' ? (
+        <main className="flex-1 overflow-hidden p-4">
+          <PredictiveLaboratoryView
+            blood={blood}
+            organs={organs}
+            onOrderLabs={handleOrderLabs}
+          />
         </main>
       ) : (
         /* Fallback placeholder for remaining pages */

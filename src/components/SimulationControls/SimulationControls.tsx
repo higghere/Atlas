@@ -1,6 +1,6 @@
 import React from 'react';
 import { Play, Pause, RotateCcw, HelpCircle, Eye } from 'lucide-react';
-import { Timeline } from '../../engine/core/Timeline';
+import { ClinicalTimeFormatter } from '../../utils/clinicalTimeFormatter';
 
 interface SimulationControlsProps {
   tickCount: number;
@@ -26,13 +26,13 @@ export const SimulationControls: React.FC<SimulationControlsProps> = ({
   onToggleStudyMode
 }) => {
   return (
-    <div className="glass-panel p-4 flex flex-col md:flex-row gap-4 justify-between items-center z-10">
+    <div className="glass-panel p-4 flex flex-col md:flex-row gap-4 justify-between items-center z-10 font-sans">
       {/* Clock indicators & Mode toggles */}
       <div className="flex gap-4 items-center">
         <div className="flex flex-col">
-          <span className="text-[10px] uppercase font-bold tracking-widest text-slate-500">SIMULATION TIME</span>
-          <span className="text-xl font-bold tracking-wider text-medical-400">
-            {Timeline.tickToTimeStr(tickCount)}
+          <span className="text-[10px] uppercase font-bold tracking-widest text-slate-500">CLINICAL TIME</span>
+          <span className="text-xl font-mono font-bold tracking-wider text-medical-400">
+            {ClinicalTimeFormatter.formatClock(tickCount)}
           </span>
         </div>
 
@@ -89,7 +89,7 @@ export const SimulationControls: React.FC<SimulationControlsProps> = ({
           disabled={isPlaying}
           className="px-3.5 py-2 text-xs font-semibold rounded-lg bg-slate-900 border border-slate-800 text-slate-300 hover:bg-slate-800 disabled:opacity-50 disabled:pointer-events-none transition-all duration-200"
         >
-          Step (+1h)
+          Step (+1s)
         </button>
       </div>
 

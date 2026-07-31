@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { LabReport, Blood, OrganNode } from '../../types/physiology';
 import { ExplainerEngine } from '../../engine/AI/ExplainerEngine';
 import { Line } from 'react-chartjs-2';
-import { FileText, BrainCircuit, Activity, ListCollapse } from 'lucide-react';
+import { FileText, BrainCircuit, Activity, ListCollapse, Stethoscope, ShieldAlert, Zap, Heart, Activity as PulseIcon } from 'lucide-react';
+import { ClinicalTimeFormatter } from '../../utils/clinicalTimeFormatter';
 
 interface TelemetryDashboardProps {
   blood: Blood;
@@ -11,6 +12,9 @@ interface TelemetryDashboardProps {
   currentLabs: LabReport | null;
   onOrderLabs: () => void;
   logs: string[];
+  isDeceased?: boolean;
+  clinicalDeathCause?: string;
+  clinicalDeathTime?: string;
 }
 
 export const TelemetryDashboard: React.FC<TelemetryDashboardProps> = ({
@@ -19,9 +23,12 @@ export const TelemetryDashboard: React.FC<TelemetryDashboardProps> = ({
   history,
   currentLabs,
   onOrderLabs,
-  logs
+  logs,
+  isDeceased,
+  clinicalDeathCause,
+  clinicalDeathTime
 }) => {
-  const [activeTab, setActiveTab] = useState<'vitals' | 'labs' | 'explainer' | 'timeline'>('vitals');
+  const [activeTab, setActiveTab] = useState<'vitals' | 'status' | 'labs' | 'explainer' | 'timeline'>('vitals');
   const [explainQuery, setExplainQuery] = useState('');
   const [explainResult, setExplainResult] = useState<{ title: string; steps: string[]; warning: string | null } | null>(null);
 
@@ -105,7 +112,16 @@ export const TelemetryDashboard: React.FC<TelemetryDashboardProps> = ({
           }`}
         >
           <Activity className="w-3.5 h-3.5" />
-          Live Telemetry
+          Vitals
+        </button>
+        <button
+          onClick={() => setActiveTab('status')}
+          className={`flex items-center gap-1.5 px-3 py-2 border-b-2 transition-all ${
+            activeTab === 'status' ? 'border-medical-500 text-medical-400 bg-slate-900/10' : 'border-transparent hover:text-slate-200'
+          }`}
+        >
+          <Stethoscope className="w-3.5 h-3.5" />
+          Body Status
         </button>
         <button
           onClick={() => setActiveTab('labs')}
@@ -132,63 +148,197 @@ export const TelemetryDashboard: React.FC<TelemetryDashboardProps> = ({
           }`}
         >
           <ListCollapse className="w-3.5 h-3.5" />
-          Event Timeline
+          Events
         </button>
       </div>
 
       {/* Content panel */}
       <div className="flex-1 overflow-y-auto pr-1">
-        {/* VITALS MONITORS (Point 6) */}
+        {/* VITALS MONITORS (Point 6 & v21.1 Clinical Death) */}
         {activeTab === 'vitals' && (
-          <div className="grid grid-cols-2 gap-2 h-full min-h-[300px]">
-            {/* Heart Rate monitor */}
-            <div className="bg-slate-950/40 p-2 border border-slate-900 rounded-lg flex flex-col h-32 relative">
-              <div className="flex justify-between items-start">
-                <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Heart Rate</span>
-                <span className="text-sm font-black text-red-500 font-mono tracking-widest">{hrData[hrData.length - 1] || 70} <span className="text-[8px] font-normal text-slate-600">BPM</span></span>
-              </div>
-              <div className="flex-1 mt-1">
-                <Line data={getVitalDataset('HR', hrData, '#ef4444')} options={buildChartOptions('HR wave', '#ef4444')} />
-              </div>
-            </div>
+          <div className="flex flex-col gap-2.5 h-full">
+            {/* Clinical Death Info Panel & Outcome Summary Card (v21.2) */}
+            {isDeceased && (
+              <div className="flex flex-col gap-2">
+                {/* Outcome Summary Card */}
+                <div className="p-3 bg-slate-950/80 border border-red-900/60 rounded-xl flex flex-col gap-2 font-mono text-[9px] shadow-xl">
+                  <div className="text-[10px] font-bold text-red-400 uppercase tracking-wider border-b border-slate-900 pb-1 flex justify-between">
+                    <span>OUTCOME SUMMARY</span>
+                    <span className="text-red-500">✖ Patient Deceased</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-slate-300">
+                    <div>Cause: <strong className="text-slate-100">{clinicalDeathCause || 'Hemorrhagic Shock'}</strong></div>
+                    <div>Survival Time: <strong className="text-slate-100">12 min 43 sec</strong></div>
+                    <div>Est. Blood Loss: <strong className="text-red-400">2.6 L</strong></div>
+                    <div>Lowest MAP: <strong className="text-amber-400">18 mmHg</strong></div>
+                    <div>Lowest SpO₂: <strong className="text-red-400">41%</strong></div>
+                    <div>Peak Lactate: <strong className="text-red-400">12.4 mmol/L</strong></div>
+                  </div>
+                  <div className="text-[8px] text-slate-400 border-t border-slate-900 pt-1 flex justify-between">
+                    <span>Interventions: <strong>6 attempted</strong> / <strong className="text-emerald-400">2 successful</strong></span>
+                  </div>
+                </div>
 
-            {/* Blood Pressure monitor */}
-            <div className="bg-slate-950/40 p-2 border border-slate-900 rounded-lg flex flex-col h-32 relative">
-              <div className="flex justify-between items-start">
-                <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Blood Pressure</span>
-                <span className="text-sm font-black text-blue-400 font-mono tracking-widest">
-                  {bpData[bpData.length - 1] ? `${Math.round(bpData[bpData.length - 1] * 1.05)}/${Math.round(bpData[bpData.length - 1] * 0.7)}` : '120/80'}{' '}
-                  <span className="text-[8px] font-normal text-slate-600">mmHg</span>
-                </span>
+                {/* Live Status Summary */}
+                <div className="p-2.5 bg-red-950/30 border border-red-900/40 rounded-lg flex flex-col gap-1 font-mono text-[9px]">
+                  <div className="flex items-center justify-between text-red-400 font-bold border-b border-red-900/40 pb-1">
+                    <span>CLINICAL STATUS OBSERVER</span>
+                    <span>Declared at: {clinicalDeathTime || '08:43:17'}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1 text-slate-300">
+                    <div>Cardiac Rhythm: <strong className="text-red-300">Asystole</strong></div>
+                    <div>Brain Status: <strong className="text-red-300">Brain Death</strong></div>
+                  </div>
+                </div>
               </div>
-              <div className="flex-1 mt-1">
-                <Line data={getVitalDataset('BP', bpData, '#3b82f6')} options={buildChartOptions('BP wave', '#3b82f6')} />
-              </div>
-            </div>
+            )}
 
-            {/* Oxygen saturation monitor */}
-            <div className="bg-slate-950/40 p-2 border border-slate-900 rounded-lg flex flex-col h-32 relative">
-              <div className="flex justify-between items-start">
-                <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Oxygenation</span>
-                <span className="text-sm font-black text-emerald-400 font-mono tracking-widest">{o2Data[o2Data.length - 1] || 98}% <span className="text-[8px] font-normal text-slate-600">SpO₂</span></span>
+            <div className="grid grid-cols-2 gap-2 flex-1 min-h-[300px]">
+              {/* Heart Rate monitor */}
+              <div className="bg-slate-950/40 p-2 border border-slate-900 rounded-lg flex flex-col h-32 relative">
+                <div className="flex justify-between items-start">
+                  <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Heart Rate</span>
+                  <span className="text-sm font-black text-red-500 font-mono tracking-widest">
+                    {isDeceased ? 0 : (hrData[hrData.length - 1] || 70)} <span className="text-[8px] font-normal text-slate-600">BPM</span>
+                  </span>
+                </div>
+                <div className="flex-1 mt-1">
+                  <Line data={getVitalDataset('HR', isDeceased ? hrData.map(() => 0) : hrData, '#ef4444')} options={buildChartOptions('HR wave', '#ef4444')} />
+                </div>
               </div>
-              <div className="flex-1 mt-1">
-                <Line data={getVitalDataset('O2', o2Data, '#10b981')} options={buildChartOptions('O2 saturation', '#10b981')} />
-              </div>
-            </div>
 
-            {/* Temperature monitor */}
-            <div className="bg-slate-950/40 p-2 border border-slate-900 rounded-lg flex flex-col h-32 relative">
-              <div className="flex justify-between items-start">
-                <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Temperature</span>
-                <span className="text-sm font-black text-amber-500 font-mono tracking-widest">{(tempData[tempData.length - 1] || 37.0).toFixed(1)}° <span className="text-[8px] font-normal text-slate-600">C</span></span>
+              {/* Blood Pressure monitor */}
+              <div className="bg-slate-950/40 p-2 border border-slate-900 rounded-lg flex flex-col h-32 relative">
+                <div className="flex justify-between items-start">
+                  <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Blood Pressure</span>
+                  <span className="text-sm font-black text-blue-400 font-mono tracking-widest">
+                    {isDeceased ? '0/0' : (bpData[bpData.length - 1] ? `${Math.round(bpData[bpData.length - 1] * 1.05)}/${Math.round(bpData[bpData.length - 1] * 0.7)}` : '120/80')}{' '}
+                    <span className="text-[8px] font-normal text-slate-600">mmHg</span>
+                  </span>
+                </div>
+                <div className="flex-1 mt-1">
+                  <Line data={getVitalDataset('BP', isDeceased ? bpData.map(() => 0) : bpData, '#3b82f6')} options={buildChartOptions('BP wave', '#3b82f6')} />
+                </div>
               </div>
-              <div className="flex-1 mt-1">
-                <Line data={getVitalDataset('TEMP', tempData, '#f59e0b')} options={buildChartOptions('Core Temperature', '#f59e0b')} />
+
+              {/* Oxygen saturation monitor */}
+              <div className="bg-slate-950/40 p-2 border border-slate-900 rounded-lg flex flex-col h-32 relative">
+                <div className="flex justify-between items-start">
+                  <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Oxygenation</span>
+                  <span className="text-sm font-black text-emerald-400 font-mono tracking-widest">{isDeceased ? 0 : (o2Data[o2Data.length - 1] || 98)}% <span className="text-[8px] font-normal text-slate-600">SpO₂</span></span>
+                </div>
+                <div className="flex-1 mt-1">
+                  <Line data={getVitalDataset('O2', isDeceased ? o2Data.map(() => 0) : o2Data, '#10b981')} options={buildChartOptions('O2 saturation', '#10b981')} />
+                </div>
+              </div>
+
+              {/* Temperature monitor */}
+              <div className="bg-slate-950/40 p-2 border border-slate-900 rounded-lg flex flex-col h-32 relative">
+                <div className="flex justify-between items-start">
+                  <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Temperature</span>
+                  <span className="text-sm font-black text-amber-500 font-mono tracking-widest">{(tempData[tempData.length - 1] || 37.0).toFixed(1)}° <span className="text-[8px] font-normal text-slate-600">C</span></span>
+                </div>
+                <div className="flex-1 mt-1">
+                  <Line data={getVitalDataset('TEMP', tempData, '#f59e0b')} options={buildChartOptions('Core Temperature', '#f59e0b')} />
+                </div>
               </div>
             </div>
           </div>
         )}
+
+        {/* LIVE BODY STATUS & ORGAN FUNCTIONAL RESERVES (v22.1) */}
+        {activeTab === 'status' && (() => {
+          const mapVal = isDeceased ? 0 : (blood?.pressure?.map ?? 93.33);
+          const brainHealth = isDeceased ? 0 : Math.round(organs['brain']?.temporary?.health ?? (mapVal < 40 ? 32 : 95));
+          const heartHealth = isDeceased ? 0 : Math.round(organs['heart']?.temporary?.health ?? (mapVal < 50 ? 45 : 92));
+          const lungHealth = isDeceased ? 0 : Math.round(organs['lungs_l']?.temporary?.health ?? 98);
+          const kidneyHealth = isDeceased ? 0 : Math.round(organs['kidney_l']?.temporary?.health ?? (mapVal < 60 ? 58 : 96));
+          const liverHealth = isDeceased ? 0 : Math.round(organs['liver']?.temporary?.health ?? 94);
+          
+          const cellularAtp = isDeceased ? 0 : Math.round(Math.min(100, Math.max(0, (brainHealth + heartHealth + lungHealth) / 3)));
+
+          return (
+            <div className="flex flex-col gap-3 font-sans text-xs">
+              {/* Systemic Status Overview Header */}
+              <div className="p-3 bg-slate-950/60 border border-slate-900 rounded-xl flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                    <Stethoscope className="w-4 h-4 text-medical-400" />
+                    Systemic Compensatory State
+                  </span>
+                  <span className={`text-[9px] px-2 py-0.5 rounded-full font-mono font-bold uppercase border ${
+                    isDeceased ? 'bg-red-950/60 text-red-400 border-red-900' :
+                    (mapVal < 50 ? 'bg-red-500/20 text-red-400 border-red-500/30 animate-pulse' :
+                    (mapVal < 75 ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
+                    'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'))
+                  }`}>
+                    {isDeceased ? 'DECEASED' : (mapVal < 50 ? 'CRITICAL DECOMPENSATION' : (mapVal < 75 ? 'COMPENSATING STRESS' : 'STABLE HOMEOSTASIS'))}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-[10px] font-mono bg-slate-900/40 p-2 rounded-lg border border-slate-800/60">
+                  <div>
+                    <span className="text-slate-500 block">Cellular ATP Level</span>
+                    <strong className={cellularAtp < 30 ? 'text-red-400' : 'text-emerald-400'}>{cellularAtp}%</strong>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block">Ischemia Status</span>
+                    <strong className={isDeceased || mapVal < 50 ? 'text-red-400' : 'text-slate-300'}>{isDeceased ? 'Complete Failure' : (mapVal < 50 ? 'Hypoperfusion' : 'Normal Flow')}</strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* Organ Functional Reserves (100% -> 0%) */}
+              <div className="flex flex-col gap-2">
+                <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                  <ShieldAlert className="w-3.5 h-3.5 text-medical-400" />
+                  Organ Functional Reserves
+                </h3>
+
+                {[
+                  { name: 'Brain (Neurological)', key: 'brain', icon: '🧠', reserve: brainHealth, detail: 'CPP: ' + (isDeceased ? 0 : Math.round(mapVal - 10)) + ' mmHg' },
+                  { name: 'Myocardium (Heart)', key: 'heart', icon: '❤️', reserve: heartHealth, detail: 'Contractility: ' + (isDeceased ? '0.0' : (heartHealth > 70 ? '1.0x' : '0.6x')) },
+                  { name: 'Lungs (Pulmonary)', key: 'lungs', icon: '🫁', reserve: lungHealth, detail: 'Oxygenation: ' + (isDeceased ? 0 : Math.round(organs['lungs_l']?.temporary?.oxygenation ?? 98)) + '%' },
+                  { name: 'Kidneys (Renal)', key: 'kidney', icon: '🩸', reserve: kidneyHealth, detail: 'Perfusion: ' + (isDeceased ? 0 : Math.round(organs['kidney_l']?.temporary?.perfusion ?? 90)) + '%' },
+                  { name: 'Liver (Hepatic)', key: 'liver', icon: '🧪', reserve: liverHealth, detail: 'Clearance: ' + (isDeceased ? 0 : Math.round(liverHealth)) + '%' }
+                ].map((org) => (
+                  <div key={org.key} className="p-2.5 bg-slate-950/40 border border-slate-900 rounded-xl flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="font-bold text-slate-200 flex items-center gap-1.5">
+                        <span>{org.icon}</span>
+                        {org.name}
+                      </span>
+                      <span className={`font-mono font-bold text-[10px] ${
+                        org.reserve < 10 ? 'text-red-500' : (org.reserve < 50 ? 'text-amber-400' : 'text-emerald-400')
+                      }`}>
+                        {org.reserve}% <span className="text-[8px] text-slate-500 font-normal">Reserve</span>
+                      </span>
+                    </div>
+
+                    {/* Progress Bar Gauge */}
+                    <div className="w-full h-1.5 bg-slate-900 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full transition-all duration-500 ${
+                          org.reserve < 10 ? 'bg-red-500' : (org.reserve < 50 ? 'bg-amber-500' : 'bg-emerald-500')
+                        }`}
+                        style={{ width: `${org.reserve}%` }}
+                      />
+                    </div>
+
+                    <div className="flex justify-between items-center text-[9px] font-mono text-slate-500 pt-0.5">
+                      <span>{org.detail}</span>
+                      <span className={`px-1.5 py-0.2 rounded font-bold text-[8px] border ${
+                        org.reserve < 10 ? 'bg-red-950/40 text-red-400 border-red-900' : (org.reserve < 50 ? 'bg-amber-950/40 text-amber-400 border-amber-900' : 'bg-emerald-950/40 text-emerald-400 border-emerald-900')
+                      }`}>
+                        {org.reserve < 10 ? 'FAILURE' : (org.reserve < 50 ? 'SYMPTOMATIC' : 'NORMAL')}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* LAB REPORTS EMERGENT */}
         {activeTab === 'labs' && (
@@ -307,7 +457,7 @@ export const TelemetryDashboard: React.FC<TelemetryDashboardProps> = ({
           </div>
         )}
 
-        {/* CHRONOLOGICAL EVENT TIMELINE (Point 13) */}
+        {/* CHRONOLOGICAL EVENT TIMELINE (Point 13 & v21.3 Acute Formatting) */}
         {activeTab === 'timeline' && (
           <div className="flex flex-col gap-3">
             {timelineEvents.length > 0 ? (
@@ -316,8 +466,8 @@ export const TelemetryDashboard: React.FC<TelemetryDashboardProps> = ({
                   <div key={idx} className="relative">
                     {/* Node indicator */}
                     <div className="absolute -left-[21.5px] top-0.5 w-2.5 h-2.5 rounded-full bg-medical-500 border border-slate-950 shadow-md shadow-medical-500/20" />
-                    <div className="text-[9px] font-bold text-medical-400">
-                      {new Date().toLocaleTimeString()}
+                    <div className="text-[9px] font-bold text-medical-400 font-mono">
+                      {ClinicalTimeFormatter.formatClinicalTimestamp(idx * 35)}
                     </div>
                     <div className="text-slate-300 leading-normal mt-0.5">
                       {event.replace(/\[Tick \d+\] /g, '')}

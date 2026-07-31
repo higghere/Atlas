@@ -1,0 +1,33 @@
+{
+  "scenario_id": "SCN_KNIFE_STAB",
+  "name": "Knife Stab",
+  "description": "Single penetrating abdominal injury with active arterial bleeding and localized tissue trauma.",
+  "recommended_lod": "LOD2_ORGAN",
+  "difficulty": "Intermediate",
+  "environment": {
+    "ambient_temp_c": 22.0,
+    "altitude_m": 0
+  },
+  "initial_events": [
+    {
+      "id": "EV_TRAUMA_STAB_01",
+      "priority": "TRAUMA_IMPACT",
+      "duration_ticks": 1,
+      "payload": {
+        "trauma_type": "penetrating",
+        "location": "left_abdomen",
+        "depth_cm": 7.0,
+        "organ_impacted": "ORG_KIDNEY_L"
+      }
+    },
+    {
+      "id": "EV_HEMORRHAGE_01",
+      "priority": "HEMORRHAGE",
+      "duration_ticks": 50,
+      "payload": {
+        "bleed_rate_ml_min": 150.0,
+        "vessel_affected": "VES_RENAL_ART_L"
+      }
+    }
+  ]
+}

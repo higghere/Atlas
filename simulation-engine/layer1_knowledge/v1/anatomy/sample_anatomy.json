@@ -1,0 +1,25 @@
+{
+  "organs": {
+    "ORG_KIDNEY_L": {
+      "name": "Left Kidney",
+      "system": "SYS_RENAL",
+      "vessels": ["VES_RENAL_ART_L", "VES_RENAL_VEIN_L"]
+    },
+    "ORG_HEART": {
+      "name": "Heart",
+      "system": "SYS_CARDIOVASCULAR",
+      "vessels": ["VES_AORTA"]
+    }
+  },
+  "tissues": {
+    "TIS_KIDNEY_CORTEX_L": {
+      "name": "Left Kidney Cortex",
+      "organ_id": "ORG_KIDNEY_L"
+    }
+  },
+  "vessels": {
+    "VES_RENAL_ART_L": { "name": "Left Renal Artery", "type": "artery" },
+    "VES_RENAL_VEIN_L": { "name": "Left Renal Vein", "type": "vein" },
+    "VES_AORTA": { "name": "Aorta", "type": "artery" }
+  }
+}

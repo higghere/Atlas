@@ -1,0 +1,15 @@
+{
+  "lymphatic_graph": {
+    "nodes": [
+      { "id": "LMY_INTERSTITIAL_TISSUE", "name": "Interstitial Space", "type": "interstitial" },
+      { "id": "LMY_CAPILLARY_L", "name": "Lymphatic Capillaries", "type": "capillary" },
+      { "id": "LMY_THORACIC_DUCT", "name": "Thoracic Duct", "type": "vessel" },
+      { "id": "VES_SUBCLAVIAN_VEIN", "name": "Subclavian Vein", "type": "vein" }
+    ],
+    "edges": [
+      { "from": "LMY_INTERSTITIAL_TISSUE", "to": "LMY_CAPILLARY_L", "flow_factor": 0.05 },
+      { "from": "LMY_CAPILLARY_L", "to": "LMY_THORACIC_DUCT", "flow_factor": 0.9 },
+      { "from": "LMY_THORACIC_DUCT", "to": "VES_SUBCLAVIAN_VEIN", "flow_factor": 1.0 }
+    ]
+  }
+}

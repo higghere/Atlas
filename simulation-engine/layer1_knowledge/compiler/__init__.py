@@ -1,0 +1,1 @@
+from layer1_knowledge.compiler.compiler import KnowledgeCompilerPipeline as KnowledgeCompiler

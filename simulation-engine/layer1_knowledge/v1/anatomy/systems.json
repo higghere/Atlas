@@ -1,0 +1,24 @@
+{
+  "systems": {
+    "SYS_CARDIOVASCULAR": {
+      "name": "Cardiovascular System",
+      "organs": ["ORG_HEART"]
+    },
+    "SYS_RENAL": {
+      "name": "Renal System",
+      "organs": ["ORG_KIDNEY_L", "ORG_KIDNEY_R"]
+    },
+    "SYS_RESPIRATORY": {
+      "name": "Respiratory System",
+      "organs": ["ORG_LUNG_L", "ORG_LUNG_R"]
+    },
+    "SYS_HEPATIC": {
+      "name": "Hepatic System",
+      "organs": ["ORG_LIVER"]
+    },
+    "SYS_ENDOCRINE": {
+      "name": "Endocrine System",
+      "organs": ["ORG_PANCREAS"]
+    }
+  }
+}

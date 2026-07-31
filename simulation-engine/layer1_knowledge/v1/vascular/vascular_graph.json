@@ -1,0 +1,21 @@
+{
+  "vascular_graph": {
+    "nodes": [
+      { "id": "VES_HEART_LV", "name": "Left Ventricle", "type": "heart_chamber" },
+      { "id": "VES_AORTA", "name": "Aorta", "type": "artery" },
+      { "id": "VES_RENAL_ART_L", "name": "Left Renal Artery", "type": "arterioles" },
+      { "id": "VES_RENAL_CAP_L", "name": "Left Renal Capillaries", "type": "capillaries" },
+      { "id": "VES_RENAL_VEIN_L", "name": "Left Renal Vein", "type": "venules" },
+      { "id": "VES_IVC", "name": "Inferior Vena Cava", "type": "vein" },
+      { "id": "VES_HEART_RA", "name": "Right Atrium", "type": "heart_chamber" }
+    ],
+    "edges": [
+      { "from": "VES_HEART_LV", "to": "VES_AORTA", "resistance": 0.02 },
+      { "from": "VES_AORTA", "to": "VES_RENAL_ART_L", "resistance": 0.1 },
+      { "from": "VES_RENAL_ART_L", "to": "VES_RENAL_CAP_L", "resistance": 0.8 },
+      { "from": "VES_RENAL_CAP_L", "to": "VES_RENAL_VEIN_L", "resistance": 0.2 },
+      { "from": "VES_RENAL_VEIN_L", "to": "VES_IVC", "resistance": 0.05 },
+      { "from": "VES_IVC", "to": "VES_HEART_RA", "resistance": 0.01 }
+    ]
+  }
+}

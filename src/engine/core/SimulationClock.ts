@@ -169,7 +169,12 @@ export class SimulationClock {
     return LaboratoryEngine.generateReport(this.blood, this.organs, this.tickCount);
   }
 
+  public isDeceased = false;
+  public deathReason = "";
+
   public step(): void {
+    if (this.isDeceased) return;
+
     this.tickCount++;
     const stepLogs: string[] = [`[Tick ${this.tickCount}] Clock incremented.`];
 
@@ -277,7 +282,18 @@ export class SimulationClock {
     // 7. Dynamic laboratory updates
     const currentLabs = this.getLabReport();
 
-    // 8. Record tick state
+    // 8. Fixed Parameter Threshold Death Check (v23.2)
+    const mapVal = (this.blood.volume / 5000) * 93.33;
+    const hrVal = Math.round(70 + (5000 - this.blood.volume) * 0.05);
+    const o2Val = this.blood.substances.oxygen;
+
+    if (this.blood.volume < 2000 || mapVal < 45 || hrVal > 600 || hrVal < 30 || o2Val < 60) {
+      this.isDeceased = true;
+      this.deathReason = "Exsanguination & Circulatory Collapse";
+      stepLogs.push("⚫ [CLINICAL DEATH DECLARED] Parameter threshold exceeded. Measurements halted.");
+    }
+
+    // Record tick state
     this.recorder.record(
       this.tickCount,
       `Hour ${this.tickCount}`,

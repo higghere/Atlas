@@ -1,0 +1,23 @@
+{
+  "scenario_id": "SCN_VEHICLE_COLLISION",
+  "name": "Vehicle Collision",
+  "description": "High-speed motorcycle crash resulting in blunt thoracic and pelvic trauma.",
+  "recommended_lod": "LOD2_ORGAN",
+  "difficulty": "Advanced",
+  "environment": {
+    "ambient_temp_c": 18.0,
+    "altitude_m": 150
+  },
+  "initial_events": [
+    {
+      "id": "EV_BLUNT_IMPACT_01",
+      "priority": "TRAUMA_IMPACT",
+      "duration_ticks": 1,
+      "payload": {
+        "trauma_type": "blunt",
+        "location": "chest_left",
+        "force_kn": 12.5
+      }
+    }
+  ]
+}
