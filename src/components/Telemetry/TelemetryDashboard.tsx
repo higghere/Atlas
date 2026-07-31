@@ -248,7 +248,7 @@ export const TelemetryDashboard: React.FC<TelemetryDashboardProps> = ({
 
         {/* LIVE BODY STATUS & ORGAN FUNCTIONAL RESERVES (v22.1) */}
         {activeTab === 'status' && (() => {
-          const mapVal = isDeceased ? 0 : (blood?.pressure?.map ?? 93.33);
+          const mapVal = isDeceased ? 0 : ((blood as any)?.pressure?.map ?? 93.33);
           const brainHealth = isDeceased ? 0 : Math.round(organs['brain']?.temporary?.health ?? (mapVal < 40 ? 32 : 95));
           const heartHealth = isDeceased ? 0 : Math.round(organs['heart']?.temporary?.health ?? (mapVal < 50 ? 45 : 92));
           const lungHealth = isDeceased ? 0 : Math.round(organs['lungs_l']?.temporary?.health ?? 98);
