@@ -19,17 +19,21 @@ export class OCREngine {
   public static async processFile(file: File): Promise<OCRResult> {
     const fileName = file.name.toLowerCase();
 
-    // 1. Read file text if plain text / json / docx
-    if (fileName.endsWith('.txt') || fileName.endsWith('.json')) {
+    // 1. Attempt direct text extraction for all files (txt, json, csv, or text-based documents)
+    try {
       const content = await file.text();
-      return {
-        text: content,
-        confidence: 0.98,
-        tables: this.extractTablesFromText(content),
-      };
+      if (content && content.trim().length > 20) {
+        return {
+          text: content,
+          confidence: 0.98,
+          tables: this.extractTablesFromText(content),
+        };
+      }
+    } catch (e) {
+      console.warn('[OCREngine] Could not read raw file text, falling back to layout synthesizer:', e);
     }
 
-    // 2. Intelligent Mock OCR for images/PDFs based on filename clues or fallback document synthesizer
+    // 2. Intelligent Mock OCR for binary images/PDFs based on filename clues or fallback synthesizer
     return this.synthesizeOCRForFile(file);
   }
 

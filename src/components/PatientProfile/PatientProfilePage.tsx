@@ -116,6 +116,7 @@ export const PatientProfilePage: React.FC<PatientProfilePageProps> = ({
                 type="text"
                 value={profile.patientName}
                 onChange={(e) => setProfile({ ...profile, patientName: e.target.value })}
+                onBlur={(e) => handleFieldChange('patientName', e.target.value)}
                 className="bg-transparent text-base font-extrabold text-slate-100 focus:outline-none border-b border-transparent focus:border-medical-500"
               />
               <div className="text-[10px] text-slate-500 font-mono flex items-center gap-2">
