@@ -8,7 +8,7 @@ export type NavTabId =
   | 'simulation'
   | 'laboratory'
   | 'timeline'
-  | 'study'
+  | 'quiz'
   | 'settings';
 
 interface NavbarProps {
@@ -34,8 +34,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'patient-profile', label: 'Patient Profile', icon: <User className="w-3.5 h-3.5" /> },
     { id: 'simulation', label: 'Simulation', icon: <Activity className="w-3.5 h-3.5" /> },
     { id: 'laboratory', label: 'Laboratory', icon: <TestTube className="w-3.5 h-3.5" /> },
-    { id: 'timeline', label: 'Timeline', icon: <Clock className="w-3.5 h-3.5" /> },
-    { id: 'study', label: 'Study', icon: <BookOpen className="w-3.5 h-3.5" /> },
+    { id: 'quiz', label: 'Quiz', icon: <BookOpen className="w-3.5 h-3.5" /> },
     { id: 'settings', label: 'Settings', icon: <SettingsIcon className="w-3.5 h-3.5" /> },
   ];
 
@@ -134,6 +133,10 @@ export const Navbar: React.FC<NavbarProps> = ({
               key={t.id}
               data-tab={t.id}
               onClick={(e) => {
+                if (t.id === 'quiz') {
+                  window.location.href = 'https://shs-pyqp-project.vercel.app/resources/questions.html?topic=class-10-bio-human-anatomy';
+                  return;
+                }
                 positionSlider(e.currentTarget);
                 onSelectTab(t.id);
               }}

@@ -46,15 +46,23 @@ export const TelemetryDashboard: React.FC<TelemetryDashboardProps> = ({
   const buildChartOptions = (title: string, color: string) => ({
     responsive: true,
     maintainAspectRatio: false,
+    layout: {
+      padding: { top: 6, bottom: 6, left: 6, right: 6 }
+    },
     plugins: {
       legend: { display: false },
-      title: { display: true, text: title, color: '#94a3b8', font: { size: 9, weight: 'bold' as const } }
+      title: { 
+        display: true, 
+        text: title.toUpperCase(), 
+        color: '#00D4FF', 
+        font: { size: 10, weight: 'bold' as const, family: 'monospace' } 
+      }
     },
     scales: {
       x: { display: false },
       y: {
-        grid: { color: 'rgba(30, 41, 59, 0.4)' },
-        ticks: { color: '#475569', font: { size: 8 } }
+        grid: { color: 'rgba(255, 255, 255, 0.05)' },
+        ticks: { color: '#64748b', font: { size: 9, family: 'monospace' } }
       }
     }
   });
@@ -65,10 +73,11 @@ export const TelemetryDashboard: React.FC<TelemetryDashboardProps> = ({
       label,
       data,
       borderColor: color,
-      backgroundColor: `${color}10`,
+      backgroundColor: `${color}15`,
       tension: 0.25,
-      borderWidth: 1.5,
-      pointRadius: 1
+      borderWidth: 2,
+      pointRadius: 1.5,
+      pointHoverRadius: 3
     }]
   });
 
@@ -193,52 +202,52 @@ export const TelemetryDashboard: React.FC<TelemetryDashboardProps> = ({
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-2 flex-1 min-h-[300px]">
+            <div className="grid grid-cols-2 gap-2.5">
               {/* Heart Rate monitor */}
-              <div className="bg-slate-950/40 p-2 border border-slate-900 rounded-lg flex flex-col h-32 relative">
-                <div className="flex justify-between items-start">
-                  <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Heart Rate</span>
-                  <span className="text-sm font-black text-red-500 font-mono tracking-widest">
-                    {isDeceased ? 0 : (hrData[hrData.length - 1] || 70)} <span className="text-[8px] font-normal text-slate-600">BPM</span>
+              <div className="bg-slate-950/60 p-2.5 border border-slate-900 rounded-xl flex flex-col h-36 relative">
+                <div className="flex justify-between items-start border-b border-slate-900/60 pb-1">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Heart Rate</span>
+                  <span className="text-xs font-black text-red-500 font-mono tracking-widest">
+                    {isDeceased ? 0 : (hrData[hrData.length - 1] || 70)} <span className="text-[8px] font-normal text-slate-500">BPM</span>
                   </span>
                 </div>
-                <div className="flex-1 mt-1">
+                <div className="flex-1 w-full h-full min-h-[90px] mt-1">
                   <Line data={getVitalDataset('HR', isDeceased ? hrData.map(() => 0) : hrData, '#ef4444')} options={buildChartOptions('HR wave', '#ef4444')} />
                 </div>
               </div>
 
               {/* Blood Pressure monitor */}
-              <div className="bg-slate-950/40 p-2 border border-slate-900 rounded-lg flex flex-col h-32 relative">
-                <div className="flex justify-between items-start">
-                  <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Blood Pressure</span>
-                  <span className="text-sm font-black text-blue-400 font-mono tracking-widest">
+              <div className="bg-slate-950/60 p-2.5 border border-slate-900 rounded-xl flex flex-col h-36 relative">
+                <div className="flex justify-between items-start border-b border-slate-900/60 pb-1">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Blood Pressure</span>
+                  <span className="text-xs font-black text-blue-400 font-mono tracking-widest">
                     {isDeceased ? '0/0' : (bpData[bpData.length - 1] ? `${Math.round(bpData[bpData.length - 1] * 1.05)}/${Math.round(bpData[bpData.length - 1] * 0.7)}` : '120/80')}{' '}
-                    <span className="text-[8px] font-normal text-slate-600">mmHg</span>
+                    <span className="text-[8px] font-normal text-slate-500">mmHg</span>
                   </span>
                 </div>
-                <div className="flex-1 mt-1">
+                <div className="flex-1 w-full h-full min-h-[90px] mt-1">
                   <Line data={getVitalDataset('BP', isDeceased ? bpData.map(() => 0) : bpData, '#3b82f6')} options={buildChartOptions('BP wave', '#3b82f6')} />
                 </div>
               </div>
 
               {/* Oxygen saturation monitor */}
-              <div className="bg-slate-950/40 p-2 border border-slate-900 rounded-lg flex flex-col h-32 relative">
-                <div className="flex justify-between items-start">
-                  <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Oxygenation</span>
-                  <span className="text-sm font-black text-emerald-400 font-mono tracking-widest">{isDeceased ? 0 : (o2Data[o2Data.length - 1] || 98)}% <span className="text-[8px] font-normal text-slate-600">SpO₂</span></span>
+              <div className="bg-slate-950/60 p-2.5 border border-slate-900 rounded-xl flex flex-col h-36 relative">
+                <div className="flex justify-between items-start border-b border-slate-900/60 pb-1">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Oxygenation</span>
+                  <span className="text-xs font-black text-emerald-400 font-mono tracking-widest">{isDeceased ? 0 : (o2Data[o2Data.length - 1] || 98)}% <span className="text-[8px] font-normal text-slate-500">SpO₂</span></span>
                 </div>
-                <div className="flex-1 mt-1">
+                <div className="flex-1 w-full h-full min-h-[90px] mt-1">
                   <Line data={getVitalDataset('O2', isDeceased ? o2Data.map(() => 0) : o2Data, '#10b981')} options={buildChartOptions('O2 saturation', '#10b981')} />
                 </div>
               </div>
 
               {/* Temperature monitor */}
-              <div className="bg-slate-950/40 p-2 border border-slate-900 rounded-lg flex flex-col h-32 relative">
-                <div className="flex justify-between items-start">
-                  <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Temperature</span>
-                  <span className="text-sm font-black text-amber-500 font-mono tracking-widest">{(tempData[tempData.length - 1] || 37.0).toFixed(1)}° <span className="text-[8px] font-normal text-slate-600">C</span></span>
+              <div className="bg-slate-950/60 p-2.5 border border-slate-900 rounded-xl flex flex-col h-36 relative">
+                <div className="flex justify-between items-start border-b border-slate-900/60 pb-1">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Temperature</span>
+                  <span className="text-xs font-black text-amber-500 font-mono tracking-widest">{(tempData[tempData.length - 1] || 37.0).toFixed(1)}° <span className="text-[8px] font-normal text-slate-500">C</span></span>
                 </div>
-                <div className="flex-1 mt-1">
+                <div className="flex-1 w-full h-full min-h-[90px] mt-1">
                   <Line data={getVitalDataset('TEMP', tempData, '#f59e0b')} options={buildChartOptions('Core Temperature', '#f59e0b')} />
                 </div>
               </div>

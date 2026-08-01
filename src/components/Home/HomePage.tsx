@@ -59,17 +59,9 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
       borderColor: 'group-hover:border-[#00D4FF]/50'
     },
     {
-      id: 'timeline' as NavTabId,
-      title: 'Replay & Analytics',
-      description: 'Review step-by-step timelines, clinical event chains, organ failure orders, and treatment outcome comparisons.',
-      icon: <RotateCcw className="w-6 h-6 text-[#00FFA8]" />,
-      accent: 'from-[#00FFA8]/20 to-transparent',
-      borderColor: 'group-hover:border-[#00FFA8]/50'
-    },
-    {
-      id: 'study' as NavTabId,
-      title: 'Knowledge Library',
-      description: 'Browse compiled diseases, drugs, surgical procedures, laboratory reference values, and medical guidelines.',
+      id: 'quiz' as NavTabId,
+      title: 'Human Anatomy Quiz',
+      description: 'Practice interactive biology questions and test your medical anatomy knowledge on PyQP.',
       icon: <BookOpen className="w-6 h-6 text-[#00D4FF]" />,
       accent: 'from-[#00D4FF]/20 to-transparent',
       borderColor: 'group-hover:border-[#00D4FF]/50'
