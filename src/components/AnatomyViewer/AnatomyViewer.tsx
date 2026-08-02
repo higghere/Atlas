@@ -409,7 +409,7 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
       <div className="lg:col-span-3 glass-panel p-3 flex flex-col h-full overflow-hidden select-none">
         <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1.5">
           <Network className="w-4 h-4 text-medical-400" />
-          Anatomical Explorer
+          Anatomical Facts & Structure
         </h3>
         <div className="relative mb-3 flex items-center">
           <input
@@ -799,8 +799,21 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
               return <div className="text-slate-500 text-xs italic">Unknown element.</div>;
             })()
           ) : (
-            <div className="text-slate-500 text-[10px] italic bg-slate-950/20 p-2.5 rounded border border-slate-900/40 text-center">
-              Select any bone or muscle to inspect its anatomical properties.
+            <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-900 flex flex-col gap-2 font-sans text-xs">
+              <div className="flex items-center gap-2 text-cyan-400 font-bold border-b border-slate-900 pb-1.5 text-[11px] uppercase tracking-wider">
+                <span>💡 Did You Know? (Anatomy Fact)</span>
+              </div>
+              <p className="text-slate-300 text-[11px] leading-relaxed italic">
+                "The adult human skeleton has 206 bones, but babies are born with about 270. As a child grows, many smaller bones fuse together to form single larger bones like the skull and spine."
+              </p>
+              <div className="flex flex-col gap-1 text-[10px] text-slate-400 border-t border-slate-900 pt-1.5 font-mono">
+                <div>• <strong className="text-emerald-400">Longest Bone:</strong> Femur (Thigh bone)</div>
+                <div>• <strong className="text-amber-400">Smallest Bone:</strong> Stapes (In the inner ear)</div>
+                <div>• <strong className="text-cyan-400">Total Blood Vessels:</strong> ~60,000 miles</div>
+              </div>
+              <div className="text-[9px] text-slate-500 italic mt-1">
+                Select any bone or muscle on the model to view specific anatomical details.
+              </div>
             </div>
           )}
         </div>

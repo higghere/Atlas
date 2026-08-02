@@ -268,22 +268,24 @@ export default function App() {
       ) : activeTab === 'anatomy' || activeTab === 'simulation' ? (
         /* Main Anatomy & Simulation Workspace */
         <main className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 overflow-hidden">
-          {/* Left Side: Scenario Builder & Controls (3 cols) */}
-          <section className="lg:col-span-3 h-full overflow-hidden">
-            <ScenarioBuilder
-              profile={profile}
-              onChangeProfile={handleProfileChange}
-              activeDisease={activeDisease}
-              onSelectDisease={handleSelectDisease}
-              onTriggerInjury={handleTriggerInjury}
-              onAdministerMedication={handleAdministerMedication}
-              activeMeds={activeMeds}
-              onLoadPreset={handleLoadPreset}
-            />
-          </section>
+          {/* Left Side: Scenario Builder ONLY when in Simulation tab */}
+          {activeTab === 'simulation' && (
+            <section className="lg:col-span-3 h-full overflow-hidden">
+              <ScenarioBuilder
+                profile={profile}
+                onChangeProfile={handleProfileChange}
+                activeDisease={activeDisease}
+                onSelectDisease={handleSelectDisease}
+                onTriggerInjury={handleTriggerInjury}
+                onAdministerMedication={handleAdministerMedication}
+                activeMeds={activeMeds}
+                onLoadPreset={handleLoadPreset}
+              />
+            </section>
+          )}
 
-          {/* Center: Interactive 3D Anatomy Viewer (6 cols) */}
-          <section className="lg:col-span-6 h-full overflow-hidden">
+          {/* Center: Interactive 3D Anatomy Viewer (9 cols in Anatomy tab, 6 cols in Simulation tab) */}
+          <section className={`${activeTab === 'anatomy' ? 'lg:col-span-9' : 'lg:col-span-6'} h-full overflow-hidden`}>
             <AnatomyViewer
               organs={organs}
               selectedOrganId={selectedOrganId}
