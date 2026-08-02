@@ -1,4 +1,5 @@
 import { BaseDocumentParser, DocumentResult } from './BaseDocumentParser';
+import { DOCXTextExtractor } from './DOCXTextExtractor';
 
 export class TXTParser extends BaseDocumentParser {
   public supportedTypes(): string[] {
@@ -24,7 +25,7 @@ export class TXTParser extends BaseDocumentParser {
 
     return {
       title: file.name.split('.')[0],
-      rawText,
+      rawText: rawText.trim(),
       metadata,
       pageCount: Math.ceil(lines / 40) || 1,
       warnings: [],
@@ -57,7 +58,7 @@ export class JSONParser extends BaseDocumentParser {
 
     return {
       title: file.name.split('.')[0],
-      rawText,
+      rawText: rawText.trim(),
       metadata,
       pageCount: 1,
       warnings: [],
@@ -85,7 +86,7 @@ export class CSVParser extends BaseDocumentParser {
 
     return {
       title: file.name.split('.')[0],
-      rawText,
+      rawText: rawText.trim(),
       metadata: { rowCount: rows.length },
       pageCount: 1,
       warnings: [],
@@ -111,7 +112,7 @@ export class PDFParser extends BaseDocumentParser {
     const rawText = content || `PDF Document Content for ${file.name}`;
     return {
       title: file.name.split('.')[0],
-      rawText,
+      rawText: rawText.trim(),
       metadata: { format: 'PDF' },
       pageCount: 1,
       warnings: [],
@@ -134,11 +135,13 @@ export class DOCXParser extends BaseDocumentParser {
   }
 
   public async parse(file: File, content?: string): Promise<DocumentResult> {
-    const rawText = content || `Word DOCX Document Content for ${file.name}`;
+    const rawXML = content || await file.text().catch(() => '');
+    const cleanParagraphs = DOCXTextExtractor.extractCleanTextFromXML(rawXML);
+
     return {
       title: file.name.split('.')[0],
-      rawText,
-      metadata: { format: 'DOCX' },
+      rawText: cleanParagraphs || `Clinical DOCX Report for ${file.name}`,
+      metadata: { format: 'DOCX', extractedParagraphs: cleanParagraphs.split('\n').length },
       pageCount: 1,
       warnings: [],
       errors: []
@@ -163,7 +166,7 @@ export class ImageParser extends BaseDocumentParser {
     const rawText = content || `Extracted OCR Text from Image ${file.name}`;
     return {
       title: file.name.split('.')[0],
-      rawText,
+      rawText: rawText.trim(),
       metadata: { format: 'Image' },
       pageCount: 1,
       warnings: [],

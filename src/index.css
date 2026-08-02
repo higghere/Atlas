@@ -14,24 +14,66 @@
   --color-medical-950: #050816;
 }
 
+/* ─────────────────────────────────────────────────────────────
+   Master CSS Tokens for Application-Wide Theme System (v24.6)
+   ───────────────────────────────────────────────────────────── */
+:root {
+  --bg-app: #050816;
+  --bg-app-radial: radial-gradient(circle at 50% 0%, #0B1220 0%, #050816 100%);
+  --bg-panel: rgba(11, 18, 32, 0.9);
+  --bg-card: rgba(2, 6, 23, 0.6);
+  --bg-input: #020617;
+  --bg-cyan-viewport: #020617;
+  --border-panel: rgba(30, 41, 59, 0.8);
+  --border-card: rgba(30, 41, 59, 0.6);
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --text-cyan-accent: #00D4FF;
+}
+
+body.theme-light {
+  --bg-app: #F4F7FB;
+  --bg-app-radial: radial-gradient(circle at 50% 0%, #ffffff 0%, #F4F7FB 100%);
+  --bg-panel: #FFFFFF;
+  --bg-card: #F8FAFC;
+  --bg-input: #FFFFFF;
+  --bg-cyan-viewport: #F1F5F9;
+  --border-panel: #CBD5E1;
+  --border-card: #E2E8F0;
+  --text-main: #0F172A;
+  --text-muted: #475569;
+  --text-cyan-accent: #0284C7;
+}
+
 @layer base {
   body {
-    @apply bg-[#050816] text-slate-100 font-sans antialiased overflow-x-hidden select-none;
-    background-image: radial-gradient(circle at 50% 0%, #0B1220 0%, #050816 100%);
+    background-color: var(--bg-app);
+    background-image: var(--bg-app-radial);
+    color: var(--text-main);
+    @apply font-sans antialiased overflow-x-hidden select-none transition-colors duration-300;
   }
 }
 
-/* Master Design Tokens & Glassmorphic Utilities (v24.2) */
+/* Glassmorphism & Panel Utilities consuming CSS Tokens */
 .glass-panel {
-  @apply bg-[#0B1220]/90 border border-slate-800/80 backdrop-blur-md rounded-2xl shadow-2xl shadow-black/60 transition-all duration-300;
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-panel);
+  color: var(--text-main);
+  @apply backdrop-blur-md rounded-2xl shadow-xl transition-all duration-300;
 }
 
 .glass-card {
-  @apply bg-slate-950/60 border border-slate-800/60 backdrop-blur-sm rounded-xl hover:border-[#00D4FF]/40 hover:bg-slate-900/60 transition-all duration-200;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-card);
+  color: var(--text-main);
+  @apply backdrop-blur-sm rounded-xl transition-all duration-200;
 }
 
 .glass-input {
-  @apply bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-[#00D4FF] focus:ring-1 focus:ring-[#00D4FF]/30 transition-all duration-200;
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-panel);
+  color: var(--text-main);
+  @apply rounded-xl px-3 py-2 text-xs placeholder-slate-400 focus:outline-none focus:border-[#00D4FF] focus:ring-1 focus:ring-[#00D4FF]/30 transition-all duration-200;
 }
 
 .glass-btn {
@@ -43,7 +85,10 @@
 }
 
 .glass-btn-secondary {
-  @apply px-3.5 py-2 rounded-xl text-xs font-bold border transition-all duration-200 flex items-center justify-center gap-2 bg-slate-900 border-slate-800 hover:bg-slate-800 hover:border-slate-700 text-slate-200 active:scale-[0.98];
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-panel);
+  color: var(--text-main);
+  @apply px-3.5 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center justify-center gap-2 active:scale-[0.98];
 }
 
 .glass-btn-danger {
@@ -84,7 +129,7 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: var(--border-panel);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {

@@ -47,6 +47,26 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ document, onAppr
         </button>
       </div>
 
+      {/* Phase 7: Document Validation & Extraction Report Banner */}
+      <div className="bg-slate-950/90 p-3 rounded-xl border border-slate-800 grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono text-[10px]">
+        <div className="flex flex-col">
+          <span className="text-slate-500 uppercase text-[9px]">Medical Conditions</span>
+          <span className="text-emerald-400 font-bold text-xs">{document.extractedDiagnoses.length} Detected</span>
+        </div>
+        <div className="flex flex-col">
+          <span className="text-slate-500 uppercase text-[9px]">Medications</span>
+          <span className="text-cyan-400 font-bold text-xs">{document.extractedMedications.length} Prescriptions</span>
+        </div>
+        <div className="flex flex-col">
+          <span className="text-slate-500 uppercase text-[9px]">Lab Parameters</span>
+          <span className="text-amber-400 font-bold text-xs">{document.extractedLabs.length} Values</span>
+        </div>
+        <div className="flex flex-col">
+          <span className="text-slate-500 uppercase text-[9px]">Confidence</span>
+          <span className="text-emerald-400 font-bold text-xs">{Math.round(document.confidenceScore * 100)}% Verified</span>
+        </div>
+      </div>
+
       {/* Grid Layout: Extracted Data Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {/* Laboratory Extractions */}
@@ -55,7 +75,10 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ document, onAppr
             <Activity className="w-4 h-4 text-cyan-400" /> Parsed Laboratory Tests ({document.extractedLabs.length})
           </h4>
           {document.extractedLabs.length === 0 ? (
-            <div className="text-[11px] text-slate-500 italic py-2">No laboratory parameters extracted.</div>
+            <div className="text-[11px] text-amber-400/80 bg-amber-500/10 p-2.5 rounded-lg border border-amber-500/20 flex flex-col gap-1">
+              <span className="font-bold flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5 shrink-0" /> No laboratory values were detected.</span>
+              <span className="text-[10px] text-slate-400">Reason: The document contained no structured lab tabular data or matching parameter keywords.</span>
+            </div>
           ) : (
             <div className="flex flex-col gap-1.5 max-h-60 overflow-y-auto pr-1 scrollbar-thin">
               {document.extractedLabs.map(lab => (
@@ -84,7 +107,10 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ document, onAppr
             <Activity className="w-4 h-4 text-rose-400" /> Extracted Diagnoses ({document.extractedDiagnoses.length})
           </h4>
           {document.extractedDiagnoses.length === 0 ? (
-            <div className="text-[11px] text-slate-500 italic py-2">No clinical diagnoses extracted.</div>
+            <div className="text-[11px] text-amber-400/80 bg-amber-500/10 p-2.5 rounded-lg border border-amber-500/20 flex flex-col gap-1">
+              <span className="font-bold flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5 shrink-0" /> Diagnosis extraction yielded 0 items.</span>
+              <span className="text-[10px] text-slate-400">Reason: No explicit ICD or clinical diagnostic keywords were detected in the parsed text.</span>
+            </div>
           ) : (
             <div className="flex flex-col gap-1.5 max-h-60 overflow-y-auto pr-1 scrollbar-thin">
               {document.extractedDiagnoses.map(diag => (

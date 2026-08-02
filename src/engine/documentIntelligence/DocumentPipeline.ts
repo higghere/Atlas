@@ -149,21 +149,31 @@ export class DocumentPipeline {
     if (approvedDocument.extractedDemographics?.heightCm) updated.anthropometrics.heightCm = approvedDocument.extractedDemographics.heightCm;
     if (approvedDocument.extractedDemographics?.weightKg) updated.anthropometrics.weightKg = approvedDocument.extractedDemographics.weightKg;
 
-    // 2. Conditions (Replace with extracted conditions if document contains medical diagnoses)
+    // 2. Conditions (Intelligent merge: update existing or append non-duplicate conditions)
     if (approvedDocument.extractedDiagnoses.length > 0) {
-      updated.medicalConditions = approvedDocument.extractedDiagnoses.map(diag => ({
-        id: diag.id,
-        name: diag.name,
-        category: diag.category,
-        stage: diag.stage,
-        severity: diag.severity,
-        diagnosedOn: approvedDocument.documentDate || new Date().toISOString().split('T')[0],
-        notes: `Extracted from ${approvedDocument.filename}`,
-        active: true,
-      }));
+      approvedDocument.extractedDiagnoses.forEach(diag => {
+        const existingIdx = updated.medicalConditions.findIndex(
+          c => c.name.toLowerCase() === diag.name.toLowerCase()
+        );
+        if (existingIdx >= 0) {
+          updated.medicalConditions[existingIdx].stage = diag.stage || updated.medicalConditions[existingIdx].stage;
+          updated.medicalConditions[existingIdx].severity = diag.severity || updated.medicalConditions[existingIdx].severity;
+        } else {
+          updated.medicalConditions.push({
+            id: diag.id,
+            name: diag.name,
+            category: diag.category,
+            stage: diag.stage,
+            severity: diag.severity,
+            diagnosedOn: approvedDocument.documentDate || new Date().toISOString().split('T')[0],
+            notes: `Extracted from ${approvedDocument.filename}`,
+            active: true,
+          });
+        }
+      });
     }
 
-    // 3. Lab Results (Replace with extracted lab values)
+    // 3. Lab Results (Intelligent merge into lab results)
     if (!updated.labResults) updated.labResults = {};
     if (!updated.labResults.cmp) updated.labResults.cmp = {};
     if (!updated.labResults.cbc) updated.labResults.cbc = {};
@@ -184,19 +194,29 @@ export class DocumentPipeline {
       if (lab.standardKey === 'triglycerides') updated.labResults.lipid!.triglyceridesMgDl = lab.normalizedValue;
     });
 
-    // 4. Medications (Replace with extracted prescriptions)
+    // 4. Medications (Intelligent merge: update dosage or append non-duplicate medications)
     if (approvedDocument.extractedMedications.length > 0) {
-      updated.medications = approvedDocument.extractedMedications.map(med => ({
-        id: med.id,
-        genericName: med.genericName,
-        brandName: med.brandName,
-        dose: med.dose,
-        unit: med.unit,
-        frequency: med.frequency,
-        route: med.route,
-        startedOn: approvedDocument.documentDate || new Date().toISOString().split('T')[0],
-        reason: med.reason,
-      }));
+      approvedDocument.extractedMedications.forEach(med => {
+        const existingIdx = updated.medications.findIndex(
+          m => m.genericName.toLowerCase() === med.genericName.toLowerCase()
+        );
+        if (existingIdx >= 0) {
+          updated.medications[existingIdx].dose = med.dose;
+          updated.medications[existingIdx].frequency = med.frequency;
+        } else {
+          updated.medications.push({
+            id: med.id,
+            genericName: med.genericName,
+            brandName: med.brandName,
+            dose: med.dose,
+            unit: med.unit,
+            frequency: med.frequency,
+            route: med.route,
+            startedOn: approvedDocument.documentDate || new Date().toISOString().split('T')[0],
+            reason: med.reason,
+          });
+        }
+      });
     }
 
     updated.updatedAt = new Date().toISOString();

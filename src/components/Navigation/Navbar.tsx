@@ -84,20 +84,17 @@ export const Navbar: React.FC<NavbarProps> = ({
   }, [activeTab]);
 
   return (
-    <header className="flex flex-col lg:flex-row justify-between items-center gap-3 border-b border-slate-900 pb-3 bg-slate-950/60 backdrop-blur-md sticky top-0 z-50 px-4 py-2.5 rounded-2xl shadow-xl">
+    <header className="flex flex-col lg:flex-row justify-between items-center gap-3 border-b border-slate-900 bg-slate-950/60 backdrop-blur-md sticky top-0 z-50 px-4 py-1.5 rounded-2xl shadow-xl">
       {/* Brand & Logo */}
       <div className="flex items-center gap-3 shrink-0">
-        <div className="w-9 h-9 rounded-xl bg-medical-600/20 border border-medical-500/30 flex items-center justify-center shadow-lg shadow-medical-500/5">
-          <Heart className="w-5 h-5 text-medical-400 fill-medical-400/20 animate-pulse" />
+        <div className="w-8 h-8 rounded-xl bg-medical-600/20 border border-medical-500/30 flex items-center justify-center shadow-lg shadow-medical-500/5">
+          <Heart className="w-4 h-4 text-medical-400 fill-medical-400/20 animate-pulse" />
         </div>
         <div>
-          <h1 className="text-base font-black tracking-wider text-slate-100 uppercase flex items-center gap-2">
+          <h1 className="text-sm font-black tracking-wider text-slate-100 uppercase">
             Human Atlas
-            <span className="text-[8px] bg-slate-900 border border-slate-800 text-medical-400 px-1.5 py-0.5 rounded tracking-widest font-bold">
-              PRO SIMULATOR
-            </span>
           </h1>
-          <p className="text-[9px] text-slate-500 font-mono tracking-tight">
+          <p className="text-[8px] text-slate-500 font-mono tracking-tight">
             Event-Driven Multi-Subsystem Physiology & EHR Engine
           </p>
         </div>

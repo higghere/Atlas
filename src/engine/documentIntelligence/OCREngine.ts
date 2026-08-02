@@ -3,6 +3,8 @@
 // Simulated text & table extraction with layout preservation
 // ─────────────────────────────────────────────────────────────
 
+import { DOCXTextExtractor } from './Parsers/DOCXTextExtractor';
+
 export interface OCRResult {
   text: string;
   confidence: number;
@@ -21,10 +23,13 @@ export class OCREngine {
 
     // 1. Attempt direct text extraction for all files (txt, json, csv, or text-based documents)
     try {
-      const content = await file.text();
+      let content = await file.text();
+      if (fileName.endsWith('.docx') || fileName.endsWith('.doc') || content.includes('w:document')) {
+        content = DOCXTextExtractor.extractCleanTextFromXML(content);
+      }
       if (content && content.trim().length > 20) {
         return {
-          text: content,
+          text: content.trim(),
           confidence: 0.98,
           tables: this.extractTablesFromText(content),
         };

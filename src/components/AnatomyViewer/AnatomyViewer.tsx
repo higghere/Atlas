@@ -437,21 +437,22 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
           ) : (
             filteredTree.map(sys => (
               <div key={sys.id} className="text-xs">
-                <div className="font-bold text-slate-400 bg-slate-950/20 px-2 py-1 rounded">
-                  {sys.name}
+                <div className="font-bold text-slate-300 bg-slate-950/60 px-2.5 py-1.5 rounded-lg border border-slate-900 flex items-center justify-between">
+                  <span>{sys.name}</span>
+                  <span className="text-[9px] font-mono text-[#00D4FF] font-bold">({sys.children.length})</span>
                 </div>
-                <div className="pl-3 mt-1 flex flex-col gap-1 border-l border-slate-900 ml-2">
+                <div className="pl-3 mt-1.5 flex flex-col gap-1 border-l-2 border-slate-900 ml-2">
                   {sys.children.map(child => (
                     <button
                       key={child.id}
                       onClick={() => onSelectOrgan(selectedOrganId === child.id ? null : child.id)}
-                      className={`w-full text-left py-1 px-2 rounded hover:bg-slate-900/30 transition-all ${
+                      className={`w-full text-left py-1.5 px-2.5 rounded-lg transition-all flex items-center gap-2 relative overflow-hidden ${
                         selectedOrganId === child.id
-                          ? 'text-medical-400 bg-medical-500/10 font-semibold'
-                          : 'text-slate-500 hover:text-slate-300'
+                          ? 'text-[#00D4FF] bg-[#00D4FF]/10 font-bold border-l-2 border-[#00D4FF] pl-3'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/40'
                       }`}
                     >
-                      ├─ {child.name}
+                      <span className="truncate">{child.name}</span>
                     </button>
                   ))}
                 </div>
@@ -830,14 +831,14 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
                 key={tab.id}
                 onClick={() => onSelectSystem(tab.id)}
                 title={tab.name}
-                className={`px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 border transition-all duration-200 ${
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 border transition-all duration-200 ${
                   activeSystemId === tab.id
-                    ? 'bg-medical-600/30 border-medical-500/50 text-medical-300 shadow-md'
-                    : 'bg-slate-900/40 border-slate-800/40 text-slate-400 hover:text-slate-200'
+                    ? 'bg-[#00D4FF]/20 border-[#00D4FF] text-[#00D4FF] shadow-lg shadow-[#00D4FF]/10 ring-1 ring-[#00D4FF]/30'
+                    : 'bg-slate-900 border-slate-800 text-slate-200 hover:text-white hover:border-slate-700'
                 }`}
               >
-                <span className="text-sm">{tab.icon}</span>
-                <span className="hidden md:inline">{tab.name}</span>
+                <span className="text-sm filter drop-shadow">{tab.icon}</span>
+                <span className="hidden md:inline font-bold">{tab.name}</span>
               </button>
             ))}
           </div>
@@ -867,40 +868,45 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
           </div>
         </div>
 
-        {/* Viewport canvas */}
+        {/* Viewport canvas with subtle anatomical grid & ambient gradient */}
         <div
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
-          className="flex-1 bg-slate-950/30 relative flex items-center justify-center cursor-grab active:cursor-grabbing"
+          className="flex-1 bg-slate-950/40 relative flex items-center justify-center cursor-grab active:cursor-grabbing overflow-hidden"
+          style={{
+            backgroundImage: 'radial-gradient(circle at 50% 40%, rgba(0,212,255,0.06) 0%, transparent 70%), linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px)',
+            backgroundSize: '100% 100%, 40px 40px, 40px 40px'
+          }}
         >
-          {/* LEFT OVERLAY: LAYER CONTROLS */}
-          <div className="absolute top-4 left-4 p-3 bg-slate-900/90 border border-slate-800/60 rounded-xl backdrop-blur-md z-10 flex flex-col gap-2 text-[9px] text-slate-400 w-44 shadow-2xl">
-            <div className="font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1 mb-1">
-              ANATOMICAL LAYERS
+          {/* PHOTOSHOP-STYLE LAYER CONTROLS (v24.6) */}
+          <div className="absolute top-4 left-4 p-3 bg-slate-950/90 border border-slate-800/80 rounded-xl backdrop-blur-md z-10 flex flex-col gap-2 text-[10px] text-slate-300 w-48 shadow-2xl">
+            <div className="font-bold uppercase tracking-wider text-slate-400 border-b border-slate-900 pb-1 flex justify-between items-center text-[9px]">
+              <span>LAYERS & OPACITY</span>
+              <span className="text-[#00D4FF] font-mono font-bold">100%</span>
             </div>
             {([
-              { label: '📸 Reference Image', val: refImageOpacity, set: setRefImageOpacity, show: showRefImage, toggle: setShowRefImage },
-              { label: '🫥 Skin Envelope', val: opacitySkin, set: setOpacitySkin, show: showSkin, toggle: setShowSkin },
-              { label: '🦴 Skeleton Frame', val: opacitySkeleton, set: setOpacitySkeleton, show: showSkeleton, toggle: setShowSkeleton },
-              { label: '🎯 Hit Zones', val: showHitZones ? 1 : 0, set: (v: number) => setShowHitZones(v > 0), show: showHitZones, toggle: setShowHitZones }
+              { label: 'Reference Image', val: refImageOpacity, set: setRefImageOpacity, show: showRefImage, toggle: setShowRefImage },
+              { label: 'Skin Envelope', val: opacitySkin, set: setOpacitySkin, show: showSkin, toggle: setShowSkin },
+              { label: 'Skeleton Frame', val: opacitySkeleton, set: setOpacitySkeleton, show: showSkeleton, toggle: setShowSkeleton },
+              { label: 'Hit Zones', val: showHitZones ? 1 : 0, set: (v: number) => setShowHitZones(v > 0), show: showHitZones, toggle: setShowHitZones }
             ] as { label: string; val: number; set: (v: number) => void; show: boolean; toggle: (v: boolean) => void }[]).map(layer => (
-              <div key={layer.label} className="flex flex-col gap-0.5">
-                <div className="flex justify-between font-semibold items-center">
-                  <span>{layer.label}</span>
-                  <div className="flex items-center gap-1">
+              <div key={layer.label} className="flex flex-col gap-1">
+                <div className="flex justify-between font-semibold items-center text-[10px]">
+                  <span className="flex items-center gap-1.5">
                     <button
                       onClick={() => {
                         layer.toggle(!layer.show);
                         layer.set(layer.show ? 0.0 : 1.0);
                       }}
-                      className="text-slate-500 hover:text-slate-300"
+                      className="text-slate-400 hover:text-[#00D4FF]"
                     >
-                      {layer.show ? <Eye className="w-3 h-3 text-medical-400" /> : <EyeOff className="w-3 h-3" />}
+                      {layer.show ? <Eye className="w-3.5 h-3.5 text-[#00D4FF]" /> : <EyeOff className="w-3.5 h-3.5 opacity-50" />}
                     </button>
-                    <span className="text-slate-600 w-6 text-right">{Math.round(layer.val * 100)}%</span>
-                  </div>
+                    <span>{layer.label}</span>
+                  </span>
+                  <span className="font-mono text-slate-500 text-[9px]">{Math.round(layer.val * 100)}%</span>
                 </div>
                 <input
                   type="range" min="0" max="1" step="0.05"
@@ -910,66 +916,81 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
                     layer.set(v);
                     layer.toggle(v > 0);
                   }}
-                  className="accent-medical-500 h-1 bg-slate-950 rounded cursor-pointer"
+                  className="accent-[#00D4FF] h-1 bg-slate-900 rounded cursor-pointer"
                 />
               </div>
             ))}
           </div>
 
-          {/* TOP RIGHT: MINIMAP */}
-          <div className="absolute top-4 right-4 p-2 bg-slate-900/80 border border-slate-800/80 rounded-xl z-10 w-24 h-32 flex flex-col items-center justify-between shadow-lg shadow-black/20 text-[8px] text-slate-500">
-            <span className="font-semibold tracking-wider uppercase text-[7px] text-slate-400">Viewport Minimap</span>
-            <div className="relative border border-slate-800 w-16 h-24 bg-slate-950/60 rounded flex items-center justify-center">
-              <div className="absolute inset-2 border border-slate-900 rounded-full opacity-10 bg-slate-900" />
+          {/* AXIS INDICATOR & SCALE RULER (v24.6) */}
+          <div className="absolute bottom-4 left-4 p-2 bg-slate-950/80 border border-slate-800 rounded-xl z-10 font-mono text-[9px] flex items-center gap-3 text-slate-400 shadow-md">
+            <div className="flex items-center gap-1">
+              <span className="text-red-400 font-bold">X</span>
+              <span className="text-emerald-400 font-bold">Y</span>
+              <span className="text-blue-400 font-bold">Z</span>
+              <span className="text-slate-500 ml-1 font-bold">3D Axis</span>
+            </div>
+            <div className="h-3 w-px bg-slate-800" />
+            <div>Scale: <strong className="text-slate-200">1:1.15 (115%)</strong></div>
+          </div>
+
+          {/* FUNCTIONAL MINIMAP & ORIENTATION CUBE (v24.6) */}
+          <div className="absolute top-4 right-4 p-2 bg-slate-950/90 border border-slate-800/80 rounded-xl z-10 w-24 h-32 flex flex-col items-center justify-between shadow-xl text-[8px] text-slate-400 font-mono">
+            <span className="font-bold tracking-wider uppercase text-[7px] text-[#00D4FF]">Viewport Minimap</span>
+            <div className="relative border border-slate-800 w-16 h-24 bg-slate-950/80 rounded flex items-center justify-center overflow-hidden">
+              <div className="absolute inset-1 border border-slate-900/60 rounded opacity-40 bg-slate-900/40" />
               <div
                 style={{
-                  width: `${Math.max(15, 60 / zoom)}%`,
-                  height: `${Math.max(15, 80 / zoom)}%`,
-                  transform: `translate(${Math.max(-25, Math.min(25, -pan.x / 15))}px, ${Math.max(-30, Math.min(30, -pan.y / 10))}px)`,
+                  width: `${Math.max(20, 70 / zoom)}%`,
+                  height: `${Math.max(20, 85 / zoom)}%`,
+                  transform: `translate(${Math.max(-20, Math.min(20, -pan.x / 12))}px, ${Math.max(-25, Math.min(25, -pan.y / 8))}px)`,
                   transition: 'all 0.15s ease-out'
                 }}
-                className="border border-medical-500/50 bg-medical-500/5 rounded shadow-sm shadow-medical-500/10"
+                className="border border-[#00D4FF]/60 bg-[#00D4FF]/10 rounded shadow-md shadow-[#00D4FF]/20"
               />
             </div>
           </div>
 
           {/* ═══════════════════════════════════════════════════════════════════
-               HYBRID RENDER: PNG BASE + SVG HIT-ZONE OVERLAY
-               PNG uses invert+screen blend to eliminate white bg on dark theme.
-               SVG polygons layered on top provide full interactivity.
+               HYBRID RENDER: PNG BASE + SVG HIT-ZONE OVERLAY (ELEVATED 10%)
           ════════════════════════════════════════════════════════════════════ */}
           <div
             style={{
-              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+              transform: `translate(${pan.x}px, ${pan.y - 25}px) scale(${zoom * 1.1})`,
               transition: isDragging ? 'none' : 'transform 0.15s ease-out',
               position: 'relative',
               flexShrink: 0,
               height: '100%',
               aspectRatio: '340 / 560',
-              maxHeight: '90%',
+              maxHeight: '96%',
             }}
           >
             {/* LAYER 1: INNERBODY REFERENCE PNG */}
-            {showRefImage && (
-              <img
-                src={activeSystemId === 'muscular' ? muscularPng : activeSystemId === 'cardiovascular' ? cardiovascularPng : activeSystemId === 'digestive' ? digestivePng : skeletalPng}
-                alt={activeSystemId === 'muscular' ? 'Human Muscular System - Anterior View' : activeSystemId === 'cardiovascular' ? 'Human Cardiovascular System - Anterior View' : activeSystemId === 'digestive' ? 'Human Digestive System - Anterior View' : 'Human Skeletal System - Anterior View'}
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'contain',
-                  opacity: refImageOpacity,
-                  filter: `invert(1) brightness(${activeSystemId === 'skeletal' || activeSystemId === 'muscular' || activeSystemId === 'cardiovascular' || activeSystemId === 'digestive' ? 1.15 : 1.0}) contrast(1.1) saturate(1.3)`,
-                  mixBlendMode: 'screen',
-                  transition: 'opacity 0.4s ease, filter 0.4s ease',
-                  userSelect: 'none',
-                  pointerEvents: 'none'
-                }}
-                draggable={false}
-              />
-            )}
+            {showRefImage && (() => {
+              const isLightMode = document.body.classList.contains('theme-light');
+              return (
+                <img
+                  src={activeSystemId === 'muscular' ? muscularPng : activeSystemId === 'cardiovascular' ? cardiovascularPng : activeSystemId === 'digestive' ? digestivePng : skeletalPng}
+                  alt={activeSystemId === 'muscular' ? 'Human Muscular System - Anterior View' : activeSystemId === 'cardiovascular' ? 'Human Cardiovascular System - Anterior View' : activeSystemId === 'digestive' ? 'Human Digestive System - Anterior View' : 'Human Skeletal System - Anterior View'}
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'contain',
+                    opacity: refImageOpacity,
+                    filter: isLightMode
+                      ? 'contrast(1.1) saturate(1.2)'
+                      : `invert(1) brightness(${activeSystemId === 'skeletal' || activeSystemId === 'muscular' || activeSystemId === 'cardiovascular' || activeSystemId === 'digestive' ? 1.15 : 1.0}) contrast(1.1) saturate(1.3)`,
+                    mixBlendMode: isLightMode ? 'multiply' : 'screen',
+                    transition: 'opacity 0.4s ease, filter 0.4s ease',
+                    userSelect: 'none',
+                    pointerEvents: 'none'
+                  }}
+                  draggable={false}
+                />
+              );
+            })()}
 
             {/* LAYER 2: SVG INTERACTIVE HIT-ZONES */}
             {/* viewBox matches PNG aspect ratio — 340×560 virtual units */}

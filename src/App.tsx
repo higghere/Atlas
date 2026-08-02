@@ -13,12 +13,27 @@ import { Heart, Activity, LineChart, Shield, Info, AlertTriangle } from 'lucide-
 import { Line } from 'react-chartjs-2';
 import { PredictiveLaboratoryView } from './components/Laboratory/PredictiveLaboratoryView';
 import { HomePage } from './components/Home/HomePage';
+import { SettingsView } from './components/Settings/SettingsView';
 
 export default function App() {
   const clockRef = useRef<SimulationClock>(new SimulationClock());
   
   // Navigation & Page State (Defaults to 'home' as per user requirement)
   const [activeTab, setActiveTab] = useState<NavTabId>('home');
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    const saved = localStorage.getItem('human_atlas_theme');
+    if (saved === 'light') return 'light';
+    return 'dark';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('human_atlas_theme', theme);
+    if (theme === 'light') {
+      document.body.classList.add('theme-light');
+    } else {
+      document.body.classList.remove('theme-light');
+    }
+  }, [theme]);
 
   // Master EHR Patient Profile with persistent storage hydration
   const [patientEHR, setPatientEHR] = useState<PatientEHR>(() => {
@@ -321,6 +336,13 @@ export default function App() {
             blood={blood}
             organs={organs}
             onOrderLabs={handleOrderLabs}
+          />
+        </main>
+      ) : activeTab === 'settings' ? (
+        <main className="flex-1 overflow-y-auto p-4">
+          <SettingsView
+            theme={theme}
+            onToggleTheme={setTheme}
           />
         </main>
       ) : (
