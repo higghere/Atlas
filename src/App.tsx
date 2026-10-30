@@ -216,8 +216,43 @@ export default function App() {
   const handleLoadPreset = (scenario: any) => {
     setIsPlaying(false);
     clockRef.current.loadScenario(scenario);
+
+    // Synchronize custom clinical vitals, injuries, and event logs if present
+    const clock = clockRef.current;
+    if (scenario.initialVitals) {
+      const v = scenario.initialVitals;
+      if (typeof v.bloodVolume === 'number') {
+        clock.blood.volume = v.bloodVolume;
+      }
+      if (typeof v.spo2 === 'number') {
+        clock.blood.substances.oxygen = v.spo2;
+      }
+      if (typeof v.hr === 'number' && v.hr > 75) {
+        clock.blood.substances.adrenaline = (v.hr - 70) * 12;
+        if (clock.organs.heart) {
+          clock.organs.heart.temporary.stress = Math.min(100, (v.hr - 70) * 1.5);
+          clock.organs.heart.temporary.bloodSupply = Math.max(3000, 4900 - (v.hr > 115 ? 1200 : 0));
+        }
+      }
+    }
+
+    if (scenario.injury) {
+      clock.triggerInjury(scenario.injury);
+    }
+
+    if (scenario.events && Array.isArray(scenario.events)) {
+      scenario.events.forEach((ev: string) => {
+        clock.logs.push(`[Scenario Event] ${ev}`);
+      });
+    }
+
     syncWithEngine();
     setCurrentLabs(null);
+
+    // Auto-launch simulation clock if requested
+    if (scenario.autoPlay) {
+      setIsPlaying(true);
+    }
   };
 
   const handleOrderLabs = () => {

@@ -16,26 +16,46 @@ export interface OCRResult {
 
 export class OCREngine {
   /**
+   * Determine if extracted raw string consists of binary unprintable data
+   */
+  private static isBinaryContent(content: string): boolean {
+    if (!content) return false;
+    const sample = content.slice(0, 1000);
+    let controlCount = 0;
+    for (let i = 0; i < sample.length; i++) {
+      const code = sample.charCodeAt(i);
+      // Null byte, Unicode replacement character (0xFFFD), or non-whitespace control codes
+      if (code === 0 || code === 65533 || (code < 32 && code !== 9 && code !== 10 && code !== 13)) {
+        controlCount++;
+      }
+    }
+    return controlCount > 3;
+  }
+
+  /**
    * Process raw file input (PDF, image, text) into clean layout-preserved OCR text & tables
    */
   public static async processFile(file: File): Promise<OCRResult> {
     const fileName = file.name.toLowerCase();
+    const isImageOrBinary = fileName.endsWith('.png') || fileName.endsWith('.jpg') || fileName.endsWith('.jpeg') || fileName.endsWith('.tiff') || fileName.endsWith('.bmp') || fileName.endsWith('.webp') || file.type.startsWith('image/');
 
-    // 1. Attempt direct text extraction for all files (txt, json, csv, or text-based documents)
-    try {
-      let content = await file.text();
-      if (fileName.endsWith('.docx') || fileName.endsWith('.doc') || content.includes('w:document')) {
-        content = DOCXTextExtractor.extractCleanTextFromXML(content);
+    // 1. For non-image files, attempt direct text extraction (txt, json, csv, docx, or text-based documents)
+    if (!isImageOrBinary) {
+      try {
+        let content = await file.text();
+        if (fileName.endsWith('.docx') || fileName.endsWith('.doc') || content.includes('w:document')) {
+          content = DOCXTextExtractor.extractCleanTextFromXML(content);
+        }
+        if (content && !this.isBinaryContent(content) && content.trim().length > 20) {
+          return {
+            text: content.trim(),
+            confidence: 0.98,
+            tables: this.extractTablesFromText(content),
+          };
+        }
+      } catch (e) {
+        console.warn('[OCREngine] Could not read raw file text, falling back to layout synthesizer:', e);
       }
-      if (content && content.trim().length > 20) {
-        return {
-          text: content.trim(),
-          confidence: 0.98,
-          tables: this.extractTablesFromText(content),
-        };
-      }
-    } catch (e) {
-      console.warn('[OCREngine] Could not read raw file text, falling back to layout synthesizer:', e);
     }
 
     // 2. Intelligent Mock OCR for binary images/PDFs based on filename clues or fallback synthesizer

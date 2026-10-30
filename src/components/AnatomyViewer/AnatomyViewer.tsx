@@ -3,6 +3,7 @@ import skeletalPng from '../../assets/skeletal_system.png';
 import muscularPng from '../../assets/muscular_system.png';
 import cardiovascularPng from '../../assets/cardiovascular_system.png';
 import digestivePng from '../../assets/digestive_system.png';
+import endocrinePng from '../../assets/endocrine_system.png';
 import { OrganNode } from '../../types/physiology';
 import { Eye, EyeOff, Search, Network } from 'lucide-react';
 import { bonesCatalog, BoneMetadata } from '../../data/bones';
@@ -31,6 +32,25 @@ import { DIGESTIVE_CATALOG_MAP } from '../../packages/digestive/data/digestiveDa
 import { DigestiveAtlasRenderer } from '../../packages/digestive/render/DigestiveAtlasRenderer';
 import { DigestiveExplorer } from '../../packages/digestive/components/DigestiveExplorer';
 import { DigestiveInspector } from '../../packages/digestive/components/DigestiveInspector';
+import { ENDOCRINE_CATALOG_MAP } from '../../packages/endocrine/data/endocrineData';
+import { EndocrineAtlasRenderer } from '../../packages/endocrine/render/EndocrineAtlasRenderer';
+import { EndocrineExplorer } from '../../packages/endocrine/components/EndocrineExplorer';
+import { EndocrineInspector } from '../../packages/endocrine/components/EndocrineInspector';
+import nervousPng from '../../assets/nervous_system.png';
+import { NERVOUS_CATALOG_MAP } from '../../packages/nervous/data/nervousData';
+import { NervousAtlasRenderer } from '../../packages/nervous/render/NervousAtlasRenderer';
+import { NervousExplorer } from '../../packages/nervous/components/NervousExplorer';
+import { NervousInspector } from '../../packages/nervous/components/NervousInspector';
+import respiratoryPng from '../../assets/respiratory_system.png';
+import { RESPIRATORY_CATALOG_MAP } from '../../packages/respiratory/data/respiratoryData';
+import { RespiratoryAtlasRenderer } from '../../packages/respiratory/render/RespiratoryAtlasRenderer';
+import { RespiratoryExplorer } from '../../packages/respiratory/components/RespiratoryExplorer';
+import { RespiratoryInspector } from '../../packages/respiratory/components/RespiratoryInspector';
+import immunePng from '../../assets/immune_lymphatic_systems.png';
+import { IMMUNE_LYMPHATIC_CATALOG_MAP } from '../../packages/immune/data/immuneData';
+import { ImmuneAtlasRenderer } from '../../packages/immune/render/ImmuneAtlasRenderer';
+import { ImmuneExplorer } from '../../packages/immune/components/ImmuneExplorer';
+import { ImmuneInspector } from '../../packages/immune/components/ImmuneInspector';
 
 interface AnatomyViewerProps {
   organs: Record<string, OrganNode>;
@@ -116,11 +136,15 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
 
   // Emojis for system filter tabs
   const systemTabs = [
-    { id: 'all',            icon: '🧍', name: 'Full Body' },
-    { id: 'skeletal',       icon: '🦴', name: 'Skeleton' },
-    { id: 'muscular',       icon: '💪', name: 'Muscular' },
-    { id: 'cardiovascular', icon: '🫀', name: 'Cardiovascular' },
-    { id: 'digestive',      icon: '🥗', name: 'Digestive' },
+    { id: 'all',              icon: '🧍', name: 'Full Body' },
+    { id: 'skeletal',         icon: '🦴', name: 'Skeleton' },
+    { id: 'muscular',         icon: '💪', name: 'Muscular' },
+    { id: 'cardiovascular',   icon: '🫀', name: 'Cardiovascular' },
+    { id: 'digestive',        icon: '🥗', name: 'Digestive' },
+    { id: 'endocrine',        icon: '🦋', name: 'Endocrine' },
+    { id: 'nervous',          icon: '🧠', name: 'Nervous' },
+    { id: 'respiratory',     icon: '🫁', name: 'Respiratory' },
+    { id: 'immune_lymphatic', icon: '🛡️', name: 'Immune & Lymphatic' },
   ];
 
   // Auto preset layer states on select tabs
@@ -434,6 +458,30 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
               onSelectOrgan={onSelectOrgan}
               searchQuery={treeSearch}
             />
+          ) : activeSystemId === 'endocrine' ? (
+            <EndocrineExplorer
+              selectedGlandId={selectedOrganId}
+              onSelectGland={onSelectOrgan}
+              searchQuery={treeSearch}
+            />
+          ) : activeSystemId === 'nervous' ? (
+            <NervousExplorer
+              selectedStructureId={selectedOrganId}
+              onSelectStructure={onSelectOrgan}
+              searchQuery={treeSearch}
+            />
+          ) : activeSystemId === 'respiratory' ? (
+            <RespiratoryExplorer
+              selectedStructureId={selectedOrganId}
+              onSelectStructure={onSelectOrgan}
+              searchQuery={treeSearch}
+            />
+          ) : activeSystemId === 'immune_lymphatic' ? (
+            <ImmuneExplorer
+              selectedStructureId={selectedOrganId}
+              onSelectStructure={onSelectOrgan}
+              searchQuery={treeSearch}
+            />
           ) : (
             filteredTree.map(sys => (
               <div key={sys.id} className="text-xs">
@@ -469,6 +517,50 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
           {selectedOrganId ? (
             (() => {
               const targetId = selectedOrganId || '';
+
+              // ── Immune & Lymphatic Structure Inspector ──────────────
+              const immuneComp = IMMUNE_LYMPHATIC_CATALOG_MAP[targetId];
+              if (immuneComp) {
+                return (
+                  <ImmuneInspector
+                    structure={immuneComp}
+                    onSelectStructure={onSelectOrgan}
+                  />
+                );
+              }
+
+              // ── Respiratory Structure Inspector ──────────────────────
+              const respiratoryComp = RESPIRATORY_CATALOG_MAP[targetId];
+              if (respiratoryComp) {
+                return (
+                  <RespiratoryInspector
+                    structure={respiratoryComp}
+                    onSelectStructure={onSelectOrgan}
+                  />
+                );
+              }
+
+              // ── Nervous Structure Inspector ──────────────────────────
+              const nervousComp = NERVOUS_CATALOG_MAP[targetId];
+              if (nervousComp) {
+                return (
+                  <NervousInspector
+                    structure={nervousComp}
+                    onSelectStructure={onSelectOrgan}
+                  />
+                );
+              }
+
+              // ── Endocrine Gland Inspector ──────────────────────────
+              const endocrineComp = ENDOCRINE_CATALOG_MAP[targetId];
+              if (endocrineComp) {
+                return (
+                  <EndocrineInspector
+                    gland={endocrineComp}
+                    onSelectGland={onSelectOrgan}
+                  />
+                );
+              }
 
               // ── Digestive Organ Inspector (Phase 4) ────────────────
               const digestiveComp = DIGESTIVE_CATALOG_MAP[targetId];
@@ -932,6 +1024,19 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
             </div>
             <div className="h-3 w-px bg-slate-800" />
             <div>Scale: <strong className="text-slate-200">1:1.15 (115%)</strong></div>
+            {import.meta.env.DEV && (
+              <>
+                <div className="h-3 w-px bg-slate-800" />
+                <button
+                  onClick={() => setShowHitZones(!showHitZones)}
+                  className={`px-1.5 py-0.5 rounded text-[8px] font-bold border transition-colors ${
+                    showHitZones ? 'bg-cyan-950 text-cyan-300 border-cyan-800' : 'bg-slate-900 text-slate-500 border-slate-800'
+                  }`}
+                >
+                  {showHitZones ? 'Hitbox Debug: ON' : 'Hitbox Debug: OFF'}
+                </button>
+              </>
+            )}
           </div>
 
           {/* FUNCTIONAL MINIMAP & ORIENTATION CUBE (v24.6) */}
@@ -956,13 +1061,13 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
           ════════════════════════════════════════════════════════════════════ */}
           <div
             style={{
-              transform: `translate(${pan.x}px, ${pan.y - 25}px) scale(${zoom * 1.1})`,
+              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
               transition: isDragging ? 'none' : 'transform 0.15s ease-out',
               position: 'relative',
               flexShrink: 0,
               height: '100%',
               aspectRatio: '340 / 560',
-              maxHeight: '96%',
+              maxHeight: '100%',
             }}
           >
             {/* LAYER 1: INNERBODY REFERENCE PNG */}
@@ -970,8 +1075,8 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
               const isLightMode = document.body.classList.contains('theme-light');
               return (
                 <img
-                  src={activeSystemId === 'muscular' ? muscularPng : activeSystemId === 'cardiovascular' ? cardiovascularPng : activeSystemId === 'digestive' ? digestivePng : skeletalPng}
-                  alt={activeSystemId === 'muscular' ? 'Human Muscular System - Anterior View' : activeSystemId === 'cardiovascular' ? 'Human Cardiovascular System - Anterior View' : activeSystemId === 'digestive' ? 'Human Digestive System - Anterior View' : 'Human Skeletal System - Anterior View'}
+                  src={activeSystemId === 'muscular' ? muscularPng : activeSystemId === 'cardiovascular' ? cardiovascularPng : activeSystemId === 'digestive' ? digestivePng : activeSystemId === 'endocrine' ? endocrinePng : activeSystemId === 'nervous' ? nervousPng : activeSystemId === 'respiratory' ? respiratoryPng : activeSystemId === 'immune_lymphatic' ? immunePng : skeletalPng}
+                  alt={activeSystemId === 'muscular' ? 'Human Muscular System - Anterior View' : activeSystemId === 'cardiovascular' ? 'Human Cardiovascular System - Anterior View' : activeSystemId === 'digestive' ? 'Human Digestive System - Anterior View' : activeSystemId === 'endocrine' ? 'Human Endocrine System - Anterior View' : activeSystemId === 'nervous' ? 'Human Nervous System - Anterior View' : activeSystemId === 'respiratory' ? 'Human Respiratory System - Anterior View' : activeSystemId === 'immune_lymphatic' ? 'Human Immune & Lymphatic Systems - Anterior View' : 'Human Skeletal System - Anterior View'}
                   style={{
                     position: 'absolute',
                     inset: 0,
@@ -981,7 +1086,7 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
                     opacity: refImageOpacity,
                     filter: isLightMode
                       ? 'contrast(1.1) saturate(1.2)'
-                      : `invert(1) brightness(${activeSystemId === 'skeletal' || activeSystemId === 'muscular' || activeSystemId === 'cardiovascular' || activeSystemId === 'digestive' ? 1.15 : 1.0}) contrast(1.1) saturate(1.3)`,
+                      : `invert(1) brightness(${activeSystemId === 'skeletal' || activeSystemId === 'muscular' || activeSystemId === 'cardiovascular' || activeSystemId === 'digestive' || activeSystemId === 'endocrine' || activeSystemId === 'nervous' || activeSystemId === 'respiratory' || activeSystemId === 'immune_lymphatic' ? 1.15 : 1.0}) contrast(1.1) saturate(1.3)`,
                     mixBlendMode: isLightMode ? 'multiply' : 'screen',
                     transition: 'opacity 0.4s ease, filter 0.4s ease',
                     userSelect: 'none',
@@ -1162,6 +1267,51 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
                 });
               })()}
 
+              {/* IMMUNE & LYMPHATIC ATLAS HITBOX LAYER */}
+              {(activeSystemId === 'immune_lymphatic' || activeSystemId === 'all') && (
+                <ImmuneAtlasRenderer
+                  selectedStructureId={selectedOrganId}
+                  onSelectStructure={onSelectOrgan}
+                  onHoverStructure={(struct, x, y) => {
+                    if (struct) {
+                      setHoveredOrgan({ id: struct.id, name: struct.name, x, y });
+                    } else {
+                      setHoveredOrgan(null);
+                    }
+                  }}
+                />
+              )}
+
+              {/* RESPIRATORY ATLAS HITBOX LAYER */}
+              {(activeSystemId === 'respiratory' || activeSystemId === 'all') && (
+                <RespiratoryAtlasRenderer
+                  selectedStructureId={selectedOrganId}
+                  onSelectStructure={onSelectOrgan}
+                  onHoverStructure={(struct, x, y) => {
+                    if (struct) {
+                      setHoveredOrgan({ id: struct.id, name: struct.name, x, y });
+                    } else {
+                      setHoveredOrgan(null);
+                    }
+                  }}
+                />
+              )}
+
+              {/* NERVOUS ATLAS HITBOX LAYER */}
+              {(activeSystemId === 'nervous' || activeSystemId === 'all') && (
+                <NervousAtlasRenderer
+                  selectedStructureId={selectedOrganId}
+                  onSelectStructure={onSelectOrgan}
+                  onHoverStructure={(struct, x, y) => {
+                    if (struct) {
+                      setHoveredOrgan({ id: struct.id, name: struct.name, x, y });
+                    } else {
+                      setHoveredOrgan(null);
+                    }
+                  }}
+                />
+              )}
+
               {/* DIGESTIVE ATLAS HITBOX LAYER */}
               {(activeSystemId === 'digestive' || activeSystemId === 'all') && (
                 <DigestiveAtlasRenderer
@@ -1170,6 +1320,21 @@ export const AnatomyViewer: React.FC<AnatomyViewerProps> = ({
                   onHoverOrgan={(organ, x, y) => {
                     if (organ) {
                       setHoveredOrgan({ id: organ.id, name: organ.name, x, y });
+                    } else {
+                      setHoveredOrgan(null);
+                    }
+                  }}
+                />
+              )}
+
+              {/* ENDOCRINE ATLAS HITBOX LAYER */}
+              {(activeSystemId === 'endocrine' || activeSystemId === 'all') && (
+                <EndocrineAtlasRenderer
+                  selectedGlandId={selectedOrganId}
+                  onSelectGland={onSelectOrgan}
+                  onHoverGland={(gland, x, y) => {
+                    if (gland) {
+                      setHoveredOrgan({ id: gland.id, name: gland.name, x, y });
                     } else {
                       setHoveredOrgan(null);
                     }

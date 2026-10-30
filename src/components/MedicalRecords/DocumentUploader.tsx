@@ -48,6 +48,7 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
     if (e.target.files && e.target.files.length > 0) {
       const valid = validateFiles(Array.from(e.target.files));
       if (valid.length > 0) onUploadFiles(valid);
+      e.target.value = '';
     }
   };
 

@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { UserProfile } from '../../types/physiology';
-import { User, Activity, AlertTriangle, Pill, ShieldAlert, Sparkles, Play, Eye, FileText, CheckCircle2, ChevronRight, Stethoscope, Clock, ShieldCheck } from 'lucide-react';
+import { User, Activity, AlertTriangle, Pill, ShieldAlert, Sparkles, Play, Eye, FileText, CheckCircle2, ChevronRight, Stethoscope, Clock, ShieldCheck, Upload, FileUp, X, RotateCcw } from 'lucide-react';
+import { ScenarioParserEngine, ParsedScenarioDraft } from '../../engine/AI/ScenarioParserEngine';
+import { OCREngine } from '../../engine/documentIntelligence/OCREngine';
 
 interface ScenarioBuilderProps {
   profile: UserProfile;
@@ -31,14 +33,12 @@ export const ScenarioBuilder: React.FC<ScenarioBuilderProps> = ({
   const [traumaDepth, setTraumaDepth] = useState(7);
   const [traumaWeapon, setTraumaWeapon] = useState('knife');
 
-  // AI Prompt State
+  // AI Prompt & Upload State
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [aiPrompt, setAiPrompt] = useState('A 42-year-old diabetic male falls from a motorcycle at high speed, striking the left side of his chest and suffering heavy bleeding from the left thigh.');
-  const [aiDraft, setAiDraft] = useState<{
-    severity: string;
-    confidence: number;
-    events: string[];
-    vitals: { hr: number; bp: string; rr: number; spo2: number };
-  } | null>(null);
+  const [aiDraft, setAiDraft] = useState<ParsedScenarioDraft | null>(null);
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
 
   // Preset Clinical Cases
   const presetCases = [
@@ -96,23 +96,91 @@ export const ScenarioBuilder: React.FC<ScenarioBuilderProps> = ({
     }
   ];
 
-  const handleParseAI = () => {
-    setAiDraft({
-      severity: 'Critical',
-      confidence: 0.94,
-      events: [
-        'TraumaEvent: Left Femur Laceration',
-        'TraumaEvent: Blunt Thoracic Impact',
-        'Pathology: Multiple Rib Fractures',
-        'Complication: Tension Pneumothorax (Left)',
-        'Hemorrhage: 800 mL Arterial Bleed'
-      ],
-      vitals: { hr: 118, bp: '95/60', rr: 28, spo2: 89 }
-    });
+  const handleParseAI = (textToParse?: string) => {
+    const targetText = textToParse || aiPrompt;
+    if (!targetText.trim()) return;
+    const parsed = ScenarioParserEngine.parse(targetText);
+    setAiDraft(parsed);
+  };
+
+  const handleFileUpload = async (file: File) => {
+    setIsUploadingFile(true);
+    setUploadedFileName(file.name);
+    try {
+      const ext = file.name.split('.').pop()?.toLowerCase() || '';
+
+      // Direct JSON import
+      if (ext === 'json') {
+        const text = await file.text();
+        try {
+          const json = JSON.parse(text);
+          if (json.profile || json.events || json.vitals) {
+            onLoadPreset(json);
+            setAiPrompt(`Imported scenario file: ${file.name}`);
+            handleParseAI(JSON.stringify(json));
+            return;
+          }
+        } catch (e) {
+          console.warn('[ScenarioBuilder] Could not parse as structured JSON, extracting as raw text.');
+        }
+      }
+
+      // Process via OCREngine for text extraction (supports txt, docx, pdf, png, jpg)
+      const ocr = await OCREngine.processFile(file);
+      const extractedText = ocr.text || `Case document: ${file.name}`;
+      setAiPrompt(extractedText);
+      handleParseAI(extractedText);
+    } catch (err) {
+      console.error('[ScenarioBuilder] File upload and parsing failed:', err);
+    } finally {
+      setIsUploadingFile(false);
+    }
   };
 
   const handleConfirmAIDraft = () => {
-    onLoadPreset(presetCases[1]);
+    if (!aiDraft) return;
+
+    // Build complete executable scenario payload
+    const customScenario = {
+      id: `ai_${Date.now()}`,
+      name: aiDraft.title,
+      icon: aiDraft.icon,
+      desc: aiPrompt.slice(0, 100) + (aiPrompt.length > 100 ? '...' : ''),
+      difficulty: aiDraft.severity,
+      profile: {
+        composition: {
+          weightKg: aiDraft.demographics.weightKg || profile.composition.weightKg,
+          heightCm: profile.composition.heightCm,
+          sex: aiDraft.demographics.sex || profile.composition.sex,
+          age: aiDraft.demographics.age || profile.composition.age,
+          bodyFatPercentage: profile.composition.bodyFatPercentage,
+          muscleMassKg: profile.composition.muscleMassKg,
+          waterPercentage: profile.composition.waterPercentage,
+          boneDensityScore: profile.composition.boneDensityScore,
+          bmi: profile.composition.bmi,
+          bmr: profile.composition.bmr,
+        },
+        lifestyle: { ...profile.lifestyle },
+        history: {
+          diseases: aiDraft.diseases,
+          allergies: [],
+          surgeries: [],
+          medications: []
+        }
+      },
+      injury: aiDraft.hasBleeding ? 'bleeding' : undefined,
+      initialVitals: {
+        hr: aiDraft.vitals.hr,
+        bp: aiDraft.vitals.bp,
+        rr: aiDraft.vitals.rr,
+        spo2: aiDraft.vitals.spo2,
+        bloodVolume: aiDraft.vitals.bloodVolume
+      },
+      events: aiDraft.events,
+      autoPlay: true // Automatically engage real-time simulation step loop
+    };
+
+    onLoadPreset(customScenario);
   };
 
   return (
@@ -295,44 +363,138 @@ export const ScenarioBuilder: React.FC<ScenarioBuilderProps> = ({
         </div>
       )}
 
-      {/* TAB 3: AI NATURAL LANGUAGE SCENARIO PARSER */}
+      {/* TAB 3: AI NATURAL LANGUAGE SCENARIO PARSER & FILE INGESTION */}
       {activeTab === 'ai' && (
         <div className="flex flex-col gap-2.5 text-[10px]">
-          <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-            AI Clinical Scenario Prompt
-          </h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+              Clinical Scenario & File Parser
+            </h3>
+            <span className="text-[9px] font-mono text-purple-400 font-bold bg-purple-950/60 px-1.5 py-0.5 rounded border border-purple-900/50">
+              AI NLP
+            </span>
+          </div>
 
+          {/* Dedicated File Upload Zone for Simulation Tab */}
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={(e) => {
+              if (e.target.files && e.target.files[0]) {
+                handleFileUpload(e.target.files[0]);
+                e.target.value = '';
+              }
+            }}
+            accept=".txt,.json,.pdf,.docx,.doc,.png,.jpg,.jpeg"
+            className="hidden"
+          />
+
+          <div
+            onClick={() => fileInputRef.current?.click()}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                handleFileUpload(e.dataTransfer.files[0]);
+              }
+            }}
+            className="border-2 border-dashed border-purple-500/30 hover:border-purple-400/60 bg-purple-950/20 hover:bg-purple-950/30 p-2.5 rounded-xl cursor-pointer text-center transition-all flex flex-col items-center gap-1.5"
+          >
+            <div className="flex items-center gap-1.5 text-purple-300 font-bold text-xs">
+              {isUploadingFile ? (
+                <Sparkles className="w-4 h-4 animate-spin text-purple-400" />
+              ) : (
+                <Upload className="w-4 h-4 text-purple-400" />
+              )}
+              <span>{isUploadingFile ? 'Processing Document...' : 'Upload Case File or EHR Document'}</span>
+            </div>
+            <p className="text-[9px] text-slate-400">
+              Drop PDF, DOCX, TXT, JSON, or Image to parse clinical text automatically
+            </p>
+          </div>
+
+          {uploadedFileName && (
+            <div className="flex items-center justify-between p-1.5 bg-slate-900/80 border border-purple-500/30 rounded-lg text-[9px] font-mono text-purple-300">
+              <span className="flex items-center gap-1.5 truncate">
+                <FileText className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                <span className="truncate">{uploadedFileName}</span>
+              </span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setUploadedFileName(null);
+                  setAiPrompt('');
+                  setAiDraft(null);
+                }}
+                className="text-slate-400 hover:text-red-400 p-0.5"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
+          {/* Scenario Text Prompt */}
           <textarea
             value={aiPrompt}
             onChange={(e) => setAiPrompt(e.target.value)}
             rows={4}
             className="glass-input w-full p-2 text-xs font-sans leading-relaxed resize-none"
-            placeholder="Type clinical scenario description in natural language..."
+            placeholder="Type clinical scenario description, trauma dispatch, or paste EHR narrative..."
           />
 
-          <button
-            onClick={handleParseAI}
-            className="w-full py-2 bg-purple-950/40 border border-purple-900/60 hover:bg-purple-900/40 text-purple-300 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all"
-          >
-            <Sparkles className="w-4 h-4 text-purple-400" />
-            Parse Natural Language Prompt
-          </button>
+          <div className="flex gap-1.5">
+            <button
+              onClick={() => handleParseAI()}
+              className="flex-1 py-2 bg-purple-950/50 border border-purple-900/80 hover:bg-purple-900/50 text-purple-200 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-md"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+              Parse Scenario Prompt
+            </button>
+            <button
+              onClick={() => {
+                const sample = 'A 42-year-old diabetic male falls from a motorcycle at high speed, striking the left side of his chest and suffering heavy bleeding from the left thigh.';
+                setAiPrompt(sample);
+                handleParseAI(sample);
+              }}
+              title="Load Sample Case"
+              className="px-2.5 py-2 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800 rounded-xl transition-all"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+            </button>
+          </div>
 
           {/* AI SCENARIO DRAFT PREVIEW */}
           {aiDraft && (
-            <div className="p-3 rounded-xl bg-slate-950 border border-purple-500/30 flex flex-col gap-2">
+            <div className="p-3 rounded-xl bg-slate-950 border border-purple-500/40 flex flex-col gap-2 shadow-xl animate-fade-in">
               <div className="flex items-center justify-between border-b border-slate-900 pb-2">
-                <span className="font-bold text-xs text-purple-300 flex items-center gap-1.5">
-                  <FileText className="w-4 h-4" />
-                  ScenarioDraft Preview
-                </span>
-                <span className="text-[9px] font-mono bg-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded font-bold">
-                  Confidence: {Math.round(aiDraft.confidence * 100)}%
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-base">{aiDraft.icon}</span>
+                  <div>
+                    <span className="font-bold text-xs text-purple-200 block">
+                      {aiDraft.title}
+                    </span>
+                    <span className="text-[8px] text-slate-500 font-mono">
+                      {aiDraft.demographics.age}yo {aiDraft.demographics.sex.toUpperCase()} • {aiDraft.demographics.weightKg}kg
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className={`text-[8px] px-1.5 py-0.5 rounded font-mono font-bold uppercase border ${
+                    aiDraft.severity === 'Critical' ? 'bg-red-950/80 text-red-400 border-red-800' :
+                    aiDraft.severity === 'Severe' ? 'bg-amber-950/80 text-amber-400 border-amber-800' :
+                    'bg-emerald-950/80 text-emerald-400 border-emerald-800'
+                  }`}>
+                    {aiDraft.severity}
+                  </span>
+                  <span className="text-[8px] font-mono bg-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded font-bold">
+                    {Math.round(aiDraft.confidence * 100)}% Match
+                  </span>
+                </div>
               </div>
 
-              <div className="space-y-1 font-mono text-[9px] text-slate-300">
+              {/* Extracted Events List */}
+              <div className="space-y-1 font-mono text-[9px] text-slate-300 max-h-32 overflow-y-auto pr-1">
                 {aiDraft.events.map((e, idx) => (
                   <div key={idx} className="flex items-center gap-1.5">
                     <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
@@ -341,19 +503,20 @@ export const ScenarioBuilder: React.FC<ScenarioBuilderProps> = ({
                 ))}
               </div>
 
-              <div className="grid grid-cols-4 gap-1 text-[8px] font-mono bg-slate-900/60 p-1.5 rounded-lg border border-slate-800 text-center">
+              {/* Target Starting Vitals */}
+              <div className="grid grid-cols-4 gap-1 text-[8px] font-mono bg-slate-900/80 p-2 rounded-lg border border-slate-800 text-center">
                 <div><span className="text-slate-500 block">HR</span><strong className="text-red-400">{aiDraft.vitals.hr}</strong></div>
                 <div><span className="text-slate-500 block">BP</span><strong className="text-amber-400">{aiDraft.vitals.bp}</strong></div>
                 <div><span className="text-slate-500 block">RR</span><strong className="text-red-400">{aiDraft.vitals.rr}</strong></div>
-                <div><span className="text-slate-500 block">SpO₂</span><strong className="text-red-400">{aiDraft.vitals.spo2}%</strong></div>
+                <div><span className="text-slate-500 block">SpO₂</span><strong className="text-emerald-400">{aiDraft.vitals.spo2}%</strong></div>
               </div>
 
               <button
                 onClick={handleConfirmAIDraft}
-                className="w-full py-1.5 bg-emerald-950/40 border border-emerald-900/60 hover:bg-emerald-900/40 text-emerald-300 font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 transition-all mt-1"
+                className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-black rounded-lg text-xs flex items-center justify-center gap-1.5 transition-all shadow-lg shadow-emerald-950/50 mt-1 cursor-pointer"
               >
-                <Play className="w-3 h-3 fill-emerald-300" />
-                Confirm & Launch AI Session
+                <Play className="w-3.5 h-3.5 fill-slate-950" />
+                Launch Real-Time Scenario
               </button>
             </div>
           )}
