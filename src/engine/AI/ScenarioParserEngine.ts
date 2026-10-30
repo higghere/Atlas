@@ -37,28 +37,44 @@ export class ScenarioParserEngine {
     const text = (rawText || '').trim();
     const lower = text.toLowerCase();
 
-    // 1. Demographics Extraction
-    const ageMatch = text.match(/(\d{1,3})[\s-]*(?:yo|y\/o|year[\s-]*old|years?\s*old)/i) || text.match(/age[:\s]*(\d{1,3})/i);
-    const age = ageMatch ? Math.min(100, Math.max(1, parseInt(ageMatch[1]))) : 42;
+    // Helper: Check if a phrase is explicitly denied (e.g. "denies chest pain")
+    const isDenied = (phrase: string): boolean => {
+      const regex = new RegExp(`(?:denies|no|without|negative\\s+for|non-)[^\\.\\n;]*?\\b${phrase}\\b`, 'i');
+      return regex.test(text);
+    };
 
-    const isFemale = /\b(female|woman|girl|lady)\b/i.test(text) || /\bsex[:\s]*f/i.test(text);
+    // 1. Demographics Extraction
+    const ageMatch =
+      text.match(/\b(?:Age|Age\s*in\s*years)\b\s*[:|]?\s*(\d{1,3})/i) ||
+      text.match(/\(Age\s*(\d{1,3})\)/i) ||
+      text.match(/(\d{1,3})[\s-]*(?:yo|y\/o|year[\s-]*old|years?\s*old)/i);
+    const age = ageMatch ? Math.min(100, Math.max(1, parseInt(ageMatch[1], 10))) : 42;
+
+    const isFemale =
+      text.match(/Sex\s*[:|]\s*Female/i) !== null ||
+      text.match(/\|\s*Female\s*\|/i) !== null ||
+      /\b(female|woman|girl|lady)\b/i.test(text) ||
+      /\bsex[:\s]*f\b/i.test(text);
     const sex: 'male' | 'female' = isFemale ? 'female' : 'male';
 
-    const weightMatch = text.match(/(\d{2,3})\s*(?:kg|kilos?)/i) || text.match(/weight[:\s]*(\d{2,3})/i);
-    const weightKg = weightMatch ? parseInt(weightMatch[1]) : (sex === 'male' ? 82 : 65);
+    const weightMatch =
+      text.match(/Weight\s*[:|]\s*(?:envir\s+)?(\d{2,3}(?:\.\d+)?)\s*kg/i) ||
+      text.match(/\|\s*(?:envir\s+)?(\d{2,3}(?:\.\d+)?)\s*kg\s*\|/i) ||
+      text.match(/(\d{2,3})\s*(?:kg|kilos?)\b/i);
+    const weightKg = weightMatch ? parseInt(weightMatch[1], 10) : (sex === 'male' ? 82 : 65);
 
     // 2. Underlying Chronic Diseases Detection
     const diseases: string[] = [];
-    if (lower.includes('diabet') || lower.includes('glucose') || lower.includes('hba1c') || lower.includes('dka') || lower.includes('sugar')) {
+    if (lower.includes('diabet') || lower.includes('glucose') || lower.includes('hba1c') || lower.includes('sugar')) {
       diseases.push('diabetes');
     }
-    if (lower.includes('heart failure') || lower.includes('chf') || lower.includes('hfref') || lower.includes('cardiomyopathy') || lower.includes('mi ') || lower.includes('infarct') || lower.includes('coronary')) {
+    if ((lower.includes('heart failure') || lower.includes('chf') || lower.includes('cardiomyopathy') || lower.includes('infarct') || lower.includes('myocardial')) && !isDenied('heart failure')) {
       diseases.push('heart_failure');
     }
-    if (lower.includes('sepsis') || lower.includes('septic') || lower.includes('infection') || lower.includes('bacteremia') || lower.includes('cytokine storm')) {
+    if (lower.includes('sepsis') || lower.includes('septic') || lower.includes('cytokine storm')) {
       diseases.push('sepsis');
     }
-    if (lower.includes('kidney') || lower.includes('renal') || lower.includes('ckd') || lower.includes('creatinine') || lower.includes('nephropathy')) {
+    if ((lower.includes('kidney') || lower.includes('renal') || lower.includes('ckd') || lower.includes('nephropathy')) && !isDenied('ckd') && !lower.includes('normal renal') && !lower.includes('no ckd')) {
       diseases.push('ckd');
     }
 
@@ -81,7 +97,7 @@ export class ScenarioParserEngine {
     }
 
     // Hemorrhage
-    if (lower.includes('bleed') || lower.includes('hemorrhag') || lower.includes('blood loss') || lower.includes('lacerat') || lower.includes('arterial')) {
+    if ((lower.includes('bleed') || lower.includes('hemorrhag') || lower.includes('blood loss') || lower.includes('arterial bleed')) && !isDenied('bleeding')) {
       hasBleeding = true;
       bleedRateMlMin = 180;
       const bleedLoc = lower.includes('thigh') || lower.includes('femur')
@@ -96,14 +112,17 @@ export class ScenarioParserEngine {
     }
 
     // Blunt Impact / Collision
-    if (lower.includes('motorcycle') || lower.includes('vehicle') || lower.includes('collision') || lower.includes('car crash') || lower.includes('fall')) {
+    if (lower.includes('motorcycle') || lower.includes('collision') || lower.includes('car crash') || (lower.includes('fall') && (lower.includes('high speed') || lower.includes('height')))) {
       events.push('TraumaEvent: High-Velocity Blunt Impact');
       if (title === 'Acute Clinical Case') title = 'Motor Vehicle Collision Trauma';
       icon = '🏍️';
     }
 
-    // Thoracic / Pulmonary
-    if (lower.includes('chest') || lower.includes('pneumothorax') || lower.includes('rib') || lower.includes('lung') || lower.includes('thoracic') || lower.includes('breath') || lower.includes('dyspnea')) {
+    // Thoracic / Pulmonary Trauma (ensure not negated: e.g. "denies chest pain or shortness of breath")
+    if (
+      (lower.includes('pneumothorax') || lower.includes('rib fracture') || lower.includes('flail chest') || (lower.includes('striking') && lower.includes('chest'))) &&
+      !isDenied('chest')
+    ) {
       events.push('Pathology: Rib Contusion & Bilateral Flail Segments');
       events.push('Complication: Tension Pneumothorax (Impaired Venous Return)');
       events.push('Respiratory: Severe V/Q Mismatch & Alveolar Hypoventilation');
@@ -112,14 +131,17 @@ export class ScenarioParserEngine {
     }
 
     // Neurological / Head Trauma
-    if (lower.includes('head') || lower.includes('skull') || lower.includes('concussion') || lower.includes('tbi') || lower.includes('intracranial') || lower.includes('unconscious')) {
+    if (
+      (lower.includes('skull') || lower.includes('concussion') || lower.includes('tbi') || lower.includes('intracranial') || lower.includes('unconscious')) &&
+      !isDenied('head')
+    ) {
       events.push('NeurologyEvent: Closed Cranial Impact & Elevated ICP');
       if (title === 'Acute Clinical Case') title = 'Traumatic Brain Injury';
       icon = '🧠';
     }
 
     // Sepsis / Infection
-    if (lower.includes('sepsis') || lower.includes('septic shock') || lower.includes('fever') || lower.includes('temp 39') || lower.includes('temp 40')) {
+    if (lower.includes('septic shock') || (lower.includes('sepsis') && (lower.includes('fever') || lower.includes('shock') || lower.includes('hypotension')))) {
       events.push('Pathology: Systemic Inflammatory Response Syndrome (SIRS)');
       events.push('Hemodynamics: Severe Vasodilation & Endothelial Capillary Leak');
       title = 'Septic Shock & Cytokine Surge';
@@ -127,11 +149,39 @@ export class ScenarioParserEngine {
     }
 
     // Cardiac Arrest / Infarction
-    if (lower.includes('cardiac arrest') || lower.includes('myocardial') || lower.includes('heart attack') || lower.includes('asystole') || lower.includes('ventricular')) {
+    if ((lower.includes('cardiac arrest') || lower.includes('myocardial infarction') || lower.includes('heart attack') || lower.includes('asystole')) && !isDenied('chest pain')) {
       events.push('CardiologyEvent: Acute Anterior Wall ST-Elevation Infarction');
       events.push('Hemodynamics: Cardiogenic Collapse & Hypoperfusion');
       title = 'Acute Myocardial Infarction';
       icon = '🫀';
+    }
+
+    // Outpatient Chronic Disease Consultations (handles notes like Riverbend Family Health Clinic)
+    const isOutpatientClinicNote =
+      lower.includes('outpatient') ||
+      lower.includes('clinic note') ||
+      lower.includes('follow-up') ||
+      lower.includes('regular diabetes check');
+
+    if (isOutpatientClinicNote && !hasBleeding && !lower.includes('motorcycle') && !lower.includes('stab')) {
+      icon = '🩸';
+      title = diseases.includes('diabetes') ? 'Type 2 Diabetes & Hypertension Management' : 'Clinical Outpatient Follow-up';
+      events.push('ClinicalAssessment: Outpatient Comprehensive Metabolic Evaluation');
+
+      if (diseases.includes('diabetes')) {
+        const hba1cMatch = text.match(/Hemoglobin\s*A1c\s*[:|]?\s*(\d+\.?\d*)\s*%/i) || text.match(/A1c[:\s]*(\d+\.?\d*)/i);
+        const a1cText = hba1cMatch ? ` (HbA1c ${hba1cMatch[1]}%)` : '';
+        events.push(`Comorbidity: Type 2 Diabetes Mellitus${a1cText}`);
+      }
+      if (lower.includes('hypertension') || lower.includes('bp')) {
+        events.push('Comorbidity: Essential Hypertension');
+      }
+      if (lower.includes('hyperlipidemia')) {
+        events.push('Comorbidity: Hyperlipidemia');
+      }
+      if (lower.includes('neuropathy') || lower.includes('tingling')) {
+        events.push('Pathology: Diabetic Distal Peripheral Neuropathy (ICD-10: E11.42)');
+      }
     }
 
     // Default Fallback Events if prompt is very brief
@@ -139,7 +189,8 @@ export class ScenarioParserEngine {
       if (diseases.length > 0) {
         events.push(`ChronicPathology: Active Decompensation (${diseases.join(', ').toUpperCase()})`);
         events.push('Metabolic: End-Organ Perfusion Stress');
-        title = `Decompensated ${diseases[0].toUpperCase()} Crisis`;
+        title = `Decompensated ${diseases[0].toUpperCase()} Case`;
+        icon = '🩸';
       } else {
         events.push('ClinicalAssessment: General Emergency Department Intake');
         events.push('Hemodynamics: Baseline Homeostatic Stress Protocol');
@@ -147,7 +198,7 @@ export class ScenarioParserEngine {
       }
     }
 
-    // Add chronic conditions as events if present
+    // Add chronic conditions as events if not already added
     diseases.forEach(d => {
       const dName = d === 'diabetes' ? 'Type 2 Diabetes Mellitus' : d === 'heart_failure' ? 'Congestive Heart Failure' : d === 'sepsis' ? 'Systemic Sepsis' : 'Chronic Kidney Disease';
       if (!events.some(e => e.includes(dName))) {
@@ -155,18 +206,29 @@ export class ScenarioParserEngine {
       }
     });
 
-    // 4. Extract Explicit Vitals from Text (if provided by user / EHR note)
-    const hrMatch = text.match(/(?:hr|heart\s*rate|pulse)[:\s]*(\d{2,3})/i);
-    const bpMatch = text.match(/(?:bp|blood\s*pressure)[:\s]*(\d{2,3}\s*\/\s*\d{2,3})/i);
-    const rrMatch = text.match(/(?:rr|resp(?:iratory)?\s*rate)[:\s]*(\d{1,2})/i);
-    const spo2Match = text.match(/(?:spo2|o2\s*sat|saturation)[:\s]*(\d{2,3})%?/i);
+    // 4. Extract Explicit Vitals from Text (supports Markdown table rows and colon labels)
+    const bpMatch =
+      text.match(/(\d{2,3}\s*\/\s*\d{2,3})\s*(?:mmHg)?/i) ||
+      text.match(/(?:bp|blood\s*pressure)[:\s|]*(\d{2,3}\s*\/\s*\d{2,3})/i);
 
-    const isHypotensive = bpMatch ? parseInt(bpMatch[1].split('/')[0]) < 90 : false;
-    const isSevereHypoxia = spo2Match ? parseInt(spo2Match[1]) < 90 : false;
+    const hrMatch =
+      text.match(/(\d{2,3})\s*bpm/i) ||
+      text.match(/(?:hr|heart\s*rate|pulse)[:\s|]*(\d{2,3})/i);
 
-    // 5. Determine Severity & Vitals
+    const rrMatch =
+      text.match(/(\d{1,2})\s*\/min/i) ||
+      text.match(/(?:rr|resp(?:iratory)?\s*rate)[:\s|]*(\d{1,2})/i);
+
+    const spo2Match =
+      text.match(/(\d{2,3})\s*%\s*(?=[\|,\n\r]|$)/i) ||
+      text.match(/(?:spo2|o2\s*sat|saturation)[:\s|]*(\d{2,3})%?/i);
+
+    const isHypotensive = bpMatch ? parseInt(bpMatch[1].split('/')[0], 10) < 90 : false;
+    const isSevereHypoxia = spo2Match ? parseInt(spo2Match[1], 10) < 90 : false;
+
+    // 5. Determine Severity & Starting Vitals
     let severity: 'Critical' | 'Severe' | 'Moderate' | 'Stable' = 'Moderate';
-    let baseHr = 75;
+    let baseHr = 74;
     let baseBp = '120/80';
     let baseRr = 16;
     let baseSpo2 = 98;
@@ -179,13 +241,20 @@ export class ScenarioParserEngine {
       baseRr = 28;
       baseSpo2 = 88;
       bloodVol = hasBleeding ? 4100 : 4700;
-    } else if (diseases.includes('sepsis') || diseases.includes('heart_failure') || lower.includes('chest pain') || lower.includes('fracture')) {
+    } else if (diseases.includes('sepsis') || diseases.includes('heart_failure') || (lower.includes('chest pain') && !isDenied('chest pain')) || lower.includes('fracture')) {
       severity = 'Severe';
       baseHr = 104;
       baseBp = '145/95';
       baseRr = 22;
       baseSpo2 = 93;
       bloodVol = 4900;
+    } else if (isOutpatientClinicNote) {
+      severity = 'Stable';
+      baseHr = 74;
+      baseBp = '132/78';
+      baseRr = 15;
+      baseSpo2 = 99;
+      bloodVol = 5000;
     } else if (diseases.includes('diabetes') || diseases.includes('ckd')) {
       severity = 'Moderate';
       baseHr = 82;
@@ -195,10 +264,10 @@ export class ScenarioParserEngine {
     }
 
     const finalVitals = {
-      hr: hrMatch ? parseInt(hrMatch[1]) : baseHr,
+      hr: hrMatch ? parseInt(hrMatch[1], 10) : baseHr,
       bp: bpMatch ? bpMatch[1].replace(/\s+/g, '') : baseBp,
-      rr: rrMatch ? parseInt(rrMatch[1]) : baseRr,
-      spo2: spo2Match ? Math.min(100, parseInt(spo2Match[1])) : baseSpo2,
+      rr: rrMatch ? parseInt(rrMatch[1], 10) : baseRr,
+      spo2: spo2Match ? Math.min(100, parseInt(spo2Match[1], 10)) : baseSpo2,
       bloodVolume: bloodVol
     };
 
@@ -220,11 +289,7 @@ export class ScenarioParserEngine {
       },
       diseases,
       hasBleeding,
-      bleedRateMlMin: hasBleeding ? bleedRateMlMin : undefined,
-      organImpacts: hasBleeding ? ['Heart', 'Lungs', 'Kidneys', 'Liver'] : diseases.length > 0 ? ['Pancreas', 'Kidneys'] : ['Systemic Tissues'],
-      recommendations: hasBleeding
-        ? ['Apply direct arterial pressure', 'Rapid IV crystalloid resuscitation', 'Crossmatch 4 units PRBCs', 'Surgical exploratory laparotomy']
-        : ['Continuous telemetry monitoring', 'Order complete blood count & metabolic panel', 'Establish peripheral IV access']
+      bleedRateMlMin: hasBleeding ? bleedRateMlMin : undefined
     };
   }
 }

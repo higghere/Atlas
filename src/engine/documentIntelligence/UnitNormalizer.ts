@@ -34,6 +34,7 @@ export class UnitNormalizer {
     hdl: { unit: 'mg/dL', low: 40, high: 80, criticalLow: 25 },
     triglycerides: { unit: 'mg/dL', low: 50, high: 149, criticalHigh: 500 },
     urine_microalbumin: { unit: 'mg/L', low: 0, high: 29, criticalHigh: 300 },
+    vitamin_b12: { unit: 'pg/mL', low: 200, high: 900, criticalLow: 150 },
   };
 
   public static normalize(key: string, rawVal: number, rawUnit: string): NormalizedLabResult {

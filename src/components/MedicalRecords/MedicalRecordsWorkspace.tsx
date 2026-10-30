@@ -25,6 +25,7 @@ export const MedicalRecordsWorkspace: React.FC<MedicalRecordsWorkspaceProps> = (
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState<'documents' | 'workspace' | 'impact'>('documents');
   const [searchQuery, setSearchQuery] = useState('');
+  const [integrationNotice, setIntegrationNotice] = useState<string | null>(null);
 
   useEffect(() => {
     setRegistryRecords(DocumentRegistry.getAll());
@@ -34,10 +35,18 @@ export const MedicalRecordsWorkspace: React.FC<MedicalRecordsWorkspaceProps> = (
     setIsProcessing(true);
     try {
       const parsedRecords: MedicalDocumentRecord[] = [];
+      let latestProfile = currentProfile;
+
       for (const file of files) {
         // 1. Process for pipeline
         const record = await DocumentPipeline.processDocument(file);
+        
+        // Auto-integrate so document data immediately takes effect in EHR and Simulation
+        record.userApproved = true;
+        record.status = 'validated';
         parsedRecords.push(record);
+
+        latestProfile = DocumentPipeline.mergeDocumentToPatientProfile(latestProfile, record);
 
         // 2. Create DocumentRecord entry in DocumentRegistry
         const docRecord: DocumentRecord = {
@@ -48,11 +57,11 @@ export const MedicalRecordsWorkspace: React.FC<MedicalRecordsWorkspaceProps> = (
           sizeBytes: file.size,
           createdAt: new Date().toISOString(),
           owner: 'ClinicalUser',
-          status: 'Uploaded',
+          status: 'Completed',
           parserUsed: 'DocumentPipeline',
           parserVersion: '24.1',
           processingTimeMs: 0,
-          attachedPatientId: null, // Decoupled by default!
+          attachedPatientId: latestProfile.id,
           tags: [record.category],
           knowledgeEntities: record.extractedDiagnoses,
           warnings: [],
@@ -75,6 +84,18 @@ export const MedicalRecordsWorkspace: React.FC<MedicalRecordsWorkspaceProps> = (
       if (parsedRecords.length > 0) {
         setSelectedDocId(parsedRecords[0].id);
       }
+
+      // Synchronize Patient Profile state and local storage immediately
+      try {
+        localStorage.setItem('human_atlas_patient_ehr', JSON.stringify(latestProfile));
+      } catch (e) {
+        console.error('Failed to save to localStorage:', e);
+      }
+      onUpdateProfile(latestProfile);
+
+      setIntegrationNotice(
+        `✓ Successfully Integrated into Active Patient EHR: ${latestProfile.patientName} (${latestProfile.demographics.age}yo ${latestProfile.demographics.sex.toUpperCase()}, ${latestProfile.medicalConditions.length} Conditions, ${latestProfile.medications.length} Medications, ${parsedRecords[0]?.extractedLabs.length || 0} Lab Values)`
+      );
     } catch (err) {
       console.error('Failed to process uploaded medical records:', err);
     } finally {
@@ -143,6 +164,21 @@ export const MedicalRecordsWorkspace: React.FC<MedicalRecordsWorkspaceProps> = (
           </button>
         </div>
       </div>
+
+      {integrationNotice && (
+        <div className="bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 p-3 rounded-xl flex items-center justify-between text-xs animate-fade-in shadow-lg shadow-emerald-950/30">
+          <div className="flex items-center gap-2 font-bold">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>{integrationNotice}</span>
+          </div>
+          <button
+            onClick={() => setIntegrationNotice(null)}
+            className="text-slate-400 hover:text-slate-200 text-xs px-2 py-0.5 rounded cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {activeTab === 'documents' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">

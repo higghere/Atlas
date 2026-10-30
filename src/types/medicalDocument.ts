@@ -40,6 +40,16 @@ export interface ExtractedDemographics {
   weightKg?: number;
   bloodGroup?: string;
   dob?: string;
+  mrn?: string;
+  bmi?: number;
+  vitals?: {
+    systolicBp?: number;
+    diastolicBp?: number;
+    heartRateBpm?: number;
+    respiratoryRateBpm?: number;
+    temperatureC?: number;
+    spo2Percent?: number;
+  };
 }
 
 export interface ExtractedDiagnosis {
@@ -48,9 +58,27 @@ export interface ExtractedDiagnosis {
   category: ConditionCategory;
   severity?: ConditionSeverity;
   stage?: string;
+  icd10?: string;
   diagnosedOn?: string;
   confidence: number; // 0.0 to 1.0
   sourceSnippet: string;
+}
+
+export interface ExtractedAllergy {
+  allergen: string;
+  reaction?: string;
+  severity?: string;
+}
+
+export interface ExtractedSurgicalProcedure {
+  name: string;
+  year?: string;
+}
+
+export interface ExtractedSocialHistory {
+  smoking?: 'never' | 'former' | 'occasionally' | 'daily';
+  alcohol?: 'never' | 'social' | 'weekly' | 'heavy';
+  exercise?: 'none' | 'light' | 'moderate' | 'vigorous' | 'extreme';
 }
 
 export interface ExtractedLabItem {
@@ -99,6 +127,9 @@ export interface MedicalDocumentRecord {
   extractedDiagnoses: ExtractedDiagnosis[];
   extractedLabs: ExtractedLabItem[];
   extractedMedications: ExtractedMedication[];
+  extractedAllergies?: ExtractedAllergy[];
+  extractedSurgeries?: ExtractedSurgicalProcedure[];
+  extractedSocialHistory?: ExtractedSocialHistory;
   userApproved: boolean;
 }
 
