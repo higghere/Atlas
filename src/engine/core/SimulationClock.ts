@@ -44,6 +44,7 @@ export class SimulationClock {
 
   public activeDisease: string | null = null;
   public activeDiseaseSeverity = 0.0; // 0 to 1.0
+  public activeInjury: string | null = null;
   public activeMeds: Record<string, number> = {}; // drugId -> dose remaining
 
   constructor() {
@@ -55,6 +56,7 @@ export class SimulationClock {
     this.logs = ["Patient initialized in normal physiological status."];
     this.activeDisease = null;
     this.activeDiseaseSeverity = 0.0;
+    this.activeInjury = null;
     this.activeMeds = {};
     this.eventQueue.clear();
     this.recorder.clear();
@@ -162,7 +164,41 @@ export class SimulationClock {
       this.logs.push("Loaded Clinical Case: Severe Chronic Kidney Disease & Stroke Sclerosis.");
     }
     
-    this.recorder.record(0, "Scenario Load", this.organs, this.systems, this.blood, [], this.getLabReport(), this.logs);
+    // Apply custom initial vitals directly in SimulationClock
+    if (scenario.initialVitals) {
+      const v = scenario.initialVitals;
+      if (typeof v.bloodVolume === 'number') {
+        this.blood.volume = v.bloodVolume;
+      }
+      if (typeof v.spo2 === 'number') {
+        this.blood.substances.oxygen = v.spo2;
+        if (this.organs.lungs) {
+          this.organs.lungs.temporary.oxygenation = v.spo2;
+          this.organs.lungs.temporary.health = Math.min(100, Math.max(30, v.spo2));
+        }
+      }
+      if (typeof v.hr === 'number' && v.hr > 75) {
+        this.blood.substances.adrenaline = (v.hr - 70) * 12;
+        if (this.organs.heart) {
+          this.organs.heart.temporary.stress = Math.min(100, (v.hr - 70) * 1.5);
+          this.organs.heart.temporary.bloodSupply = Math.max(2800, 4900 - (v.hr > 115 ? 1200 : 0));
+        }
+      }
+    }
+
+    if (scenario.injury) {
+      this.triggerInjury(scenario.injury);
+    }
+
+    if (scenario.events && Array.isArray(scenario.events)) {
+      scenario.events.forEach((ev: string) => {
+        this.logs.push(`[Scenario Event] ${ev}`);
+      });
+    }
+
+    // Clear recorder and snapshot initial scenario state at tick 0
+    this.recorder.clear();
+    this.recorder.record(0, scenario.name || "Scenario Load", this.organs, this.systems, this.blood, this.eventQueue.getAll(), this.getLabReport(), this.logs);
   }
 
   public getLabReport(): LabReport {
@@ -312,6 +348,7 @@ export class SimulationClock {
   }
 
   public triggerInjury(injuryId: string): void {
+    this.activeInjury = injuryId;
     if (injuryId === 'bleeding') {
       // Create a continuous event for bleeding
       const bleedEvent: SimulationEvent = {

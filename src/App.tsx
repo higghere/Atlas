@@ -205,7 +205,9 @@ export default function App() {
 
   const handleTriggerInjury = (injuryId: string) => {
     clockRef.current.triggerInjury(injuryId);
+    clockRef.current.step();
     syncWithEngine();
+    setIsPlaying(true);
   };
 
   const handleAdministerMedication = (medId: string, dose: number) => {
@@ -217,40 +219,14 @@ export default function App() {
     setIsPlaying(false);
     clockRef.current.loadScenario(scenario);
 
-    // Synchronize custom clinical vitals, injuries, and event logs if present
-    const clock = clockRef.current;
-    if (scenario.initialVitals) {
-      const v = scenario.initialVitals;
-      if (typeof v.bloodVolume === 'number') {
-        clock.blood.volume = v.bloodVolume;
-      }
-      if (typeof v.spo2 === 'number') {
-        clock.blood.substances.oxygen = v.spo2;
-      }
-      if (typeof v.hr === 'number' && v.hr > 75) {
-        clock.blood.substances.adrenaline = (v.hr - 70) * 12;
-        if (clock.organs.heart) {
-          clock.organs.heart.temporary.stress = Math.min(100, (v.hr - 70) * 1.5);
-          clock.organs.heart.temporary.bloodSupply = Math.max(3000, 4900 - (v.hr > 115 ? 1200 : 0));
-        }
-      }
-    }
-
-    if (scenario.injury) {
-      clock.triggerInjury(scenario.injury);
-    }
-
-    if (scenario.events && Array.isArray(scenario.events)) {
-      scenario.events.forEach((ev: string) => {
-        clock.logs.push(`[Scenario Event] ${ev}`);
-      });
-    }
+    // Step once immediately so telemetry waveforms and numbers instantly render active tick
+    clockRef.current.step();
 
     syncWithEngine();
     setCurrentLabs(null);
 
     // Auto-launch simulation clock if requested
-    if (scenario.autoPlay) {
+    if (scenario.autoPlay !== false) {
       setIsPlaying(true);
     }
   };
@@ -267,6 +243,15 @@ export default function App() {
     }
     const avgHealth = Object.values(organs).reduce((acc, o) => acc + o.temporary.health, 0) / (Object.keys(organs).length || 6);
     if (avgHealth <= 5) return { text: 'Deceased', color: 'text-red-500 font-black' };
+
+    // Acute trauma / critical shock conditions
+    if (clockRef.current.activeInjury === 'bleeding' || blood.volume < 4500 || blood.substances.oxygen < 92) {
+      if (blood.volume < 3500 || blood.substances.oxygen < 80 || avgHealth < 40) {
+        return { text: 'Critical Shock', color: 'text-red-500 animate-pulse font-black' };
+      }
+      return { text: 'Critical Shock', color: 'text-red-500 font-bold' };
+    }
+
     if (avgHealth < 40) return { text: 'Critical Shock', color: 'text-red-500' };
     if (avgHealth < 75) return { text: 'Compensating Stress', color: 'text-amber-400' };
     return { text: 'Stable Homeostasis', color: 'text-emerald-400' };

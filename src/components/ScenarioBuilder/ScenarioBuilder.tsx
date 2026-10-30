@@ -39,6 +39,7 @@ export const ScenarioBuilder: React.FC<ScenarioBuilderProps> = ({
   const [aiDraft, setAiDraft] = useState<ParsedScenarioDraft | null>(null);
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const [isScenarioRunning, setIsScenarioRunning] = useState(false);
 
   // Preset Clinical Cases
   const presetCases = [
@@ -49,6 +50,9 @@ export const ScenarioBuilder: React.FC<ScenarioBuilderProps> = ({
       desc: 'Single penetrating abdominal injury, renal artery bleed',
       difficulty: 'Intermediate',
       lod: 'LOD2_ORGAN',
+      injury: 'bleeding',
+      initialVitals: { hr: 110, bp: '100/65', rr: 22, spo2: 95, bloodVolume: 4400 },
+      autoPlay: true,
       profile: {
         composition: { weightKg: 75, heightCm: 178, sex: 'male', age: 34, bodyFatPercentage: 18, muscleMassKg: 34, waterPercentage: 62, boneDensityScore: 0.8, bmi: 23.7, bmr: 1680 },
         lifestyle: { smoking: 'none', alcohol: 'light', exercise: 'active', sleep: 8, diet: 'healthy' },
@@ -62,6 +66,9 @@ export const ScenarioBuilder: React.FC<ScenarioBuilderProps> = ({
       desc: 'High-speed impact, blunt thoracic trauma & pneumothorax',
       difficulty: 'Advanced',
       lod: 'LOD2_ORGAN',
+      injury: 'bleeding',
+      initialVitals: { hr: 118, bp: '95/60', rr: 28, spo2: 89, bloodVolume: 4100 },
+      autoPlay: true,
       profile: {
         composition: { weightKg: 82, heightCm: 180, sex: 'male', age: 42, bodyFatPercentage: 24, muscleMassKg: 35, waterPercentage: 56, boneDensityScore: 0.2, bmi: 25.3, bmr: 1750 },
         lifestyle: { smoking: 'light', alcohol: 'moderate', exercise: 'moderate', sleep: 7, diet: 'balanced' },
@@ -75,6 +82,8 @@ export const ScenarioBuilder: React.FC<ScenarioBuilderProps> = ({
       desc: 'Systemic cytokine storm, severe arterial vasodilation',
       difficulty: 'Critical',
       lod: 'LOD1_TISSUE',
+      initialVitals: { hr: 125, bp: '85/50', rr: 30, spo2: 91, bloodVolume: 4800 },
+      autoPlay: true,
       profile: {
         composition: { weightKg: 78, heightCm: 176, sex: 'male', age: 40, bodyFatPercentage: 24, muscleMassKg: 31, waterPercentage: 58, boneDensityScore: 0.0, bmi: 25.2, bmr: 1650 },
         lifestyle: { smoking: 'none', alcohol: 'none', exercise: 'moderate', sleep: 7, diet: 'balanced' },
@@ -88,6 +97,8 @@ export const ScenarioBuilder: React.FC<ScenarioBuilderProps> = ({
       desc: '55yo male, glycation & glomerulosclerosis',
       difficulty: 'Intermediate',
       lod: 'LOD1_TISSUE',
+      initialVitals: { hr: 78, bp: '135/85', rr: 16, spo2: 97, bloodVolume: 5000 },
+      autoPlay: true,
       profile: {
         composition: { weightKg: 95, heightCm: 178, sex: 'male', age: 55, bodyFatPercentage: 32, muscleMassKg: 35, waterPercentage: 48, boneDensityScore: -0.5, bmi: 30.0, bmr: 1800 },
         lifestyle: { smoking: 'light', alcohol: 'moderate', exercise: 'sedentary', sleep: 6, diet: 'poor' },
@@ -138,21 +149,27 @@ export const ScenarioBuilder: React.FC<ScenarioBuilderProps> = ({
   };
 
   const handleConfirmAIDraft = () => {
-    if (!aiDraft) return;
+    let draft = aiDraft;
+    if (!draft) {
+      if (!aiPrompt.trim()) return;
+      draft = ScenarioParserEngine.parse(aiPrompt);
+      setAiDraft(draft);
+    }
+    if (!draft) return;
 
     // Build complete executable scenario payload
     const customScenario = {
       id: `ai_${Date.now()}`,
-      name: aiDraft.title,
-      icon: aiDraft.icon,
+      name: draft.title,
+      icon: draft.icon,
       desc: aiPrompt.slice(0, 100) + (aiPrompt.length > 100 ? '...' : ''),
-      difficulty: aiDraft.severity,
+      difficulty: draft.severity,
       profile: {
         composition: {
-          weightKg: aiDraft.demographics.weightKg || profile.composition.weightKg,
+          weightKg: draft.demographics.weightKg || profile.composition.weightKg,
           heightCm: profile.composition.heightCm,
-          sex: aiDraft.demographics.sex || profile.composition.sex,
-          age: aiDraft.demographics.age || profile.composition.age,
+          sex: draft.demographics.sex || profile.composition.sex,
+          age: draft.demographics.age || profile.composition.age,
           bodyFatPercentage: profile.composition.bodyFatPercentage,
           muscleMassKg: profile.composition.muscleMassKg,
           waterPercentage: profile.composition.waterPercentage,
@@ -162,24 +179,25 @@ export const ScenarioBuilder: React.FC<ScenarioBuilderProps> = ({
         },
         lifestyle: { ...profile.lifestyle },
         history: {
-          diseases: aiDraft.diseases,
+          diseases: draft.diseases,
           allergies: [],
           surgeries: [],
           medications: []
         }
       },
-      injury: aiDraft.hasBleeding ? 'bleeding' : undefined,
+      injury: draft.hasBleeding ? 'bleeding' : undefined,
       initialVitals: {
-        hr: aiDraft.vitals.hr,
-        bp: aiDraft.vitals.bp,
-        rr: aiDraft.vitals.rr,
-        spo2: aiDraft.vitals.spo2,
-        bloodVolume: aiDraft.vitals.bloodVolume
+        hr: draft.vitals.hr,
+        bp: draft.vitals.bp,
+        rr: draft.vitals.rr,
+        spo2: draft.vitals.spo2,
+        bloodVolume: draft.vitals.bloodVolume
       },
-      events: aiDraft.events,
+      events: draft.events,
       autoPlay: true // Automatically engage real-time simulation step loop
     };
 
+    setIsScenarioRunning(true);
     onLoadPreset(customScenario);
   };
 
@@ -511,12 +529,19 @@ export const ScenarioBuilder: React.FC<ScenarioBuilderProps> = ({
                 <div><span className="text-slate-500 block">SpO₂</span><strong className="text-emerald-400">{aiDraft.vitals.spo2}%</strong></div>
               </div>
 
+              {isScenarioRunning && (
+                <div className="flex items-center gap-2 bg-emerald-950/70 border border-emerald-500/40 text-emerald-300 px-3 py-1.5 rounded-lg text-[10px] font-bold animate-pulse">
+                  <Activity className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <span>Clinical Session Active • Real-Time Telemetry Streaming</span>
+                </div>
+              )}
+
               <button
                 onClick={handleConfirmAIDraft}
                 className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-black rounded-lg text-xs flex items-center justify-center gap-1.5 transition-all shadow-lg shadow-emerald-950/50 mt-1 cursor-pointer"
               >
                 <Play className="w-3.5 h-3.5 fill-slate-950" />
-                Launch Real-Time Scenario
+                {isScenarioRunning ? 'Restart / Re-launch Scenario' : 'Confirm & Launch AI Session'}
               </button>
             </div>
           )}
