@@ -6,6 +6,7 @@ import { DocumentRecord } from './Parsers/BaseDocumentParser';
 import { DocumentRegistry } from './DocumentRegistry';
 import { DocumentIndex } from './DocumentIndex';
 import { OCREngine } from './OCREngine';
+import { DOCXTextExtractor } from './Parsers/DOCXTextExtractor';
 import { 
   TXTParser, 
   JSONParser, 
@@ -38,11 +39,14 @@ export class ProcessingQueue {
 
       // 3. Extract text / parse
       let rawText = '';
-      if (file.type.startsWith('image/') || ext === 'pdf' || ext === 'png' || ext === 'jpg' || ext === 'jpeg' || ext === 'tiff' || ext === 'bmp') {
+      if (ext === 'docx' || ext === 'doc') {
+        rawText = await DOCXTextExtractor.extractTextFromFile(file);
+      } else if (file.type.startsWith('image/') || ext === 'pdf' || ext === 'png' || ext === 'jpg' || ext === 'jpeg' || ext === 'tiff' || ext === 'bmp') {
         const ocr = await OCREngine.processFile(file);
         rawText = ocr.text;
       } else {
-        rawText = await file.text().catch(() => `Extracted raw content from ${file.name}`);
+        const ocr = await OCREngine.processFile(file);
+        rawText = ocr.text || await file.text().catch(() => `Extracted raw content from ${file.name}`);
       }
       const result = await parser.parse(file, rawText);
 

@@ -129,6 +129,7 @@ export const ScenarioBuilder: React.FC<ScenarioBuilderProps> = ({
             onLoadPreset(json);
             setAiPrompt(`Imported scenario file: ${file.name}`);
             handleParseAI(JSON.stringify(json));
+            setIsScenarioRunning(true);
             return;
           }
         } catch (e) {
@@ -140,7 +141,51 @@ export const ScenarioBuilder: React.FC<ScenarioBuilderProps> = ({
       const ocr = await OCREngine.processFile(file);
       const extractedText = ocr.text || `Case document: ${file.name}`;
       setAiPrompt(extractedText);
-      handleParseAI(extractedText);
+      const parsedDraft = ScenarioParserEngine.parse(extractedText);
+      setAiDraft(parsedDraft);
+
+      // Auto-integrate and launch scenario into Simulation Clock (just like JSON files do)
+      const customScenario = {
+        id: `ai_${Date.now()}`,
+        name: parsedDraft.title,
+        icon: parsedDraft.icon,
+        desc: `Imported from ${file.name}: ${parsedDraft.events.slice(0, 2).join(', ')}`,
+        difficulty: parsedDraft.severity,
+        profile: {
+          composition: {
+            weightKg: parsedDraft.demographics?.weightKg || profile?.composition?.weightKg || 75,
+            heightCm: profile?.composition?.heightCm || 178,
+            sex: parsedDraft.demographics?.sex || profile?.composition?.sex || 'male',
+            age: parsedDraft.demographics?.age || profile?.composition?.age || 40,
+            bodyFatPercentage: profile?.composition?.bodyFatPercentage || 20,
+            muscleMassKg: profile?.composition?.muscleMassKg || 32,
+            waterPercentage: profile?.composition?.waterPercentage || 60,
+            boneDensityScore: profile?.composition?.boneDensityScore || 0,
+            bmi: profile?.composition?.bmi || 24,
+            bmr: profile?.composition?.bmr || 1650,
+          },
+          lifestyle: { ...(profile?.lifestyle || {}) },
+          history: {
+            diseases: parsedDraft.diseases || [],
+            allergies: [],
+            surgeries: [],
+            medications: []
+          }
+        },
+        injury: parsedDraft.hasBleeding ? 'bleeding' : undefined,
+        initialVitals: {
+          hr: parsedDraft.vitals.hr,
+          bp: parsedDraft.vitals.bp,
+          rr: parsedDraft.vitals.rr,
+          spo2: parsedDraft.vitals.spo2,
+          bloodVolume: parsedDraft.vitals.bloodVolume
+        },
+        events: parsedDraft.events,
+        autoPlay: true
+      };
+
+      setIsScenarioRunning(true);
+      onLoadPreset(customScenario);
     } catch (err) {
       console.error('[ScenarioBuilder] File upload and parsing failed:', err);
     } finally {
@@ -166,20 +211,20 @@ export const ScenarioBuilder: React.FC<ScenarioBuilderProps> = ({
       difficulty: draft.severity,
       profile: {
         composition: {
-          weightKg: draft.demographics.weightKg || profile.composition.weightKg,
-          heightCm: profile.composition.heightCm,
-          sex: draft.demographics.sex || profile.composition.sex,
-          age: draft.demographics.age || profile.composition.age,
-          bodyFatPercentage: profile.composition.bodyFatPercentage,
-          muscleMassKg: profile.composition.muscleMassKg,
-          waterPercentage: profile.composition.waterPercentage,
-          boneDensityScore: profile.composition.boneDensityScore,
-          bmi: profile.composition.bmi,
-          bmr: profile.composition.bmr,
+          weightKg: draft.demographics?.weightKg || profile?.composition?.weightKg || 75,
+          heightCm: profile?.composition?.heightCm || 178,
+          sex: draft.demographics?.sex || profile?.composition?.sex || 'male',
+          age: draft.demographics?.age || profile?.composition?.age || 40,
+          bodyFatPercentage: profile?.composition?.bodyFatPercentage || 20,
+          muscleMassKg: profile?.composition?.muscleMassKg || 32,
+          waterPercentage: profile?.composition?.waterPercentage || 60,
+          boneDensityScore: profile?.composition?.boneDensityScore || 0,
+          bmi: profile?.composition?.bmi || 24,
+          bmr: profile?.composition?.bmr || 1650,
         },
-        lifestyle: { ...profile.lifestyle },
+        lifestyle: { ...(profile?.lifestyle || {}) },
         history: {
-          diseases: draft.diseases,
+          diseases: draft.diseases || [],
           allergies: [],
           surgeries: [],
           medications: []

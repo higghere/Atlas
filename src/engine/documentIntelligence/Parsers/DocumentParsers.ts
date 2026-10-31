@@ -135,14 +135,23 @@ export class DOCXParser extends BaseDocumentParser {
   }
 
   public async parse(file: File, content?: string): Promise<DocumentResult> {
-    const rawXML = content || await file.text().catch(() => '');
-    const cleanParagraphs = DOCXTextExtractor.extractCleanTextFromXML(rawXML);
+    let cleanParagraphs = '';
+    if (content && !content.includes('PK\x03\x04') && !content.includes('word/_rels/')) {
+      cleanParagraphs = content;
+    }
+    if (!cleanParagraphs) {
+      cleanParagraphs = await DOCXTextExtractor.extractTextFromFile(file);
+    }
+    if (!cleanParagraphs) {
+      const rawXML = await file.text().catch(() => '');
+      cleanParagraphs = DOCXTextExtractor.extractCleanTextFromXML(rawXML);
+    }
 
     return {
       title: file.name.split('.')[0],
       rawText: cleanParagraphs || `Clinical DOCX Report for ${file.name}`,
       metadata: { format: 'DOCX', extractedParagraphs: cleanParagraphs.split('\n').length },
-      pageCount: 1,
+      pageCount: Math.ceil(cleanParagraphs.split('\n').length / 30) || 1,
       warnings: [],
       errors: []
     };

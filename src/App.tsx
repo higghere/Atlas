@@ -222,12 +222,39 @@ export default function App() {
     // Step once immediately so telemetry waveforms and numbers instantly render active tick
     clockRef.current.step();
 
+    // Synchronize active patient demographics and anthropometrics from scenario
+    if (scenario.profile?.composition) {
+      const comp = scenario.profile.composition;
+      setPatientEHR(prev => {
+        const updated = {
+          ...prev,
+          patientName: scenario.name || prev.patientName,
+          demographics: {
+            ...prev.demographics,
+            age: comp.age || prev.demographics.age,
+            sex: comp.sex || prev.demographics.sex
+          },
+          anthropometrics: {
+            ...prev.anthropometrics,
+            weightKg: comp.weightKg || prev.anthropometrics.weightKg,
+            heightCm: comp.heightCm || prev.anthropometrics.heightCm
+          }
+        };
+        try {
+          localStorage.setItem('human_atlas_patient_ehr', JSON.stringify(updated));
+        } catch (e) {}
+        return updated;
+      });
+    }
+
     syncWithEngine();
     setCurrentLabs(null);
 
     // Auto-launch simulation clock if requested
     if (scenario.autoPlay !== false) {
-      setIsPlaying(true);
+      setTimeout(() => {
+        setIsPlaying(true);
+      }, 50);
     }
   };
 
@@ -259,10 +286,24 @@ export default function App() {
 
   const profile: UserProfile = {
     composition: {
-      weightKg: patientEHR.anthropometrics.weightKg, heightCm: patientEHR.anthropometrics.heightCm, sex: patientEHR.demographics.sex as any, age: patientEHR.demographics.age, bodyFatPercentage: patientEHR.anthropometrics.bodyFatPercentage || 20,
-      muscleMassKg: 30, waterPercentage: 60, boneDensityScore: 0.0, bmi: patientEHR.calculatedMetrics?.bmi || 24.5, bmr: patientEHR.calculatedMetrics?.bmrKcal || 1600
+      weightKg: patientEHR?.anthropometrics?.weightKg || 75,
+      heightCm: patientEHR?.anthropometrics?.heightCm || 178,
+      sex: (patientEHR?.demographics?.sex as any) || 'male',
+      age: patientEHR?.demographics?.age || 40,
+      bodyFatPercentage: patientEHR?.anthropometrics?.bodyFatPercentage || 20,
+      muscleMassKg: 30,
+      waterPercentage: 60,
+      boneDensityScore: 0.0,
+      bmi: patientEHR?.calculatedMetrics?.bmi || 24.5,
+      bmr: patientEHR?.calculatedMetrics?.bmrKcal || 1600
     },
-    lifestyle: clockRef.current.lifestyle,
+    lifestyle: clockRef.current?.lifestyle || {
+      smoking: 'none',
+      alcohol: 'light',
+      exercise: 'active',
+      sleep: 8,
+      diet: 'healthy'
+    },
     history: {
       diseases: activeDisease ? [activeDisease] : [],
       allergies: [],
